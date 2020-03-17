@@ -1,14 +1,12 @@
 package ppm.odataprovider.service;
 
-import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.olingo.commons.api.edm.provider.*;
 import org.apache.olingo.commons.api.ex.ODataException;
+import ppm.odataprovider.service.metadata.EntityMetadataHelper;
+import ppm.odataprovider.service.metadata.EntityMetadataModel;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class PpmEdmProvider extends CsdlAbstractEdmProvider {
 
@@ -16,67 +14,58 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     public static final String NAMESPACE = "OData.Ppm";
 
     // EDM Container
-    public static final String CONTAINER_NAME = "Project Container";
+    public static final String CONTAINER_NAME = "Project   Container";
     public static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
 
     // Entity Types Names
     public static final String ET_TASK_NAME = "Task";
-    public static final FullQualifiedName ET_TASK_FQN = new FullQualifiedName(NAMESPACE, ET_TASK_NAME);
+//    public static final FullQualifiedName ET_TASK_FQN = new FullQualifiedName(NAMESPACE, ET_TASK_NAME);
 
     // Entity Set Names
     public static final String ES_TASKS_NAME = "Tasks";
 
+    private EntityMetadataModel[] entityMetadata;
+
+    public PpmEdmProvider() {
+        try {
+            this.entityMetadata = EntityMetadataHelper.readMetadataJSON();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     @Override
     public CsdlEntityType getEntityType(FullQualifiedName entityTypeName) throws ODataException {
-        if (entityTypeName.equals(ET_TASK_FQN)) {
-
-            // creating entity type properties
-            CsdlProperty taskId = new CsdlProperty().setName("TaskId").setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
-            CsdlProperty name = new CsdlProperty().setName("Name").setType(EdmPrimitiveTypeKind.String.getFullQualifiedName());
-            CsdlProperty dateCreated = new CsdlProperty().setName("DateCreated").setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
-            CsdlProperty earlyStart = new CsdlProperty().setName("EarlyStart").setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
-            CsdlProperty earlyFinish = new CsdlProperty().setName("EarlyFinish").setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
-            CsdlProperty lateStart = new CsdlProperty().setName("LateStart").setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
-            CsdlProperty lateFinish = new CsdlProperty().setName("LateFinish").setType(EdmPrimitiveTypeKind.DateTimeOffset.getFullQualifiedName());
-            CsdlProperty totalFloat = new CsdlProperty().setName("TotalFloat").setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
-            CsdlProperty freeFloat = new CsdlProperty().setName("FreeFloat").setType(EdmPrimitiveTypeKind.Int32.getFullQualifiedName());
-            CsdlProperty assignee = new CsdlProperty().setName("Assignee").setType((EdmPrimitiveTypeKind.String).getFullQualifiedName());
-
-            //creating key element
-            CsdlPropertyRef taskRef = new CsdlPropertyRef();
-            taskRef.setName("TaskId");
-
-            // entity type
-            CsdlEntityType taskEntityType = new CsdlEntityType();
-            taskEntityType.setName(ET_TASK_NAME);
-            taskEntityType.setProperties(Arrays.asList(taskId, name, dateCreated, earlyStart, earlyFinish, lateStart, lateFinish, totalFloat, freeFloat, assignee));
-            taskEntityType.setKey(Collections.singletonList(taskRef));
-
-            return taskEntityType;
+        try {
+            return EntityMetadataHelper.getEntityType(entityTypeName);
+        } catch (Exception e) {
+            throw new ODataException(e.getMessage());
         }
-        return null;
     }
 
     @Override
     public CsdlEntitySet getEntitySet(FullQualifiedName entityContainer, String entitySetName) throws ODataException {
-        if(entityContainer.equals(CONTAINER) && entitySetName.equals(ES_TASKS_NAME)){
-            CsdlEntitySet entitySet = new CsdlEntitySet();
-            entitySet.setName(ES_TASKS_NAME);
-            entitySet.setType(ET_TASK_FQN);
-
-            return entitySet;
+        if (entityContainer.equals(CONTAINER)) {
+            Optional<EntityMetadataModel> edmModelFound = Arrays.stream(this.entityMetadata).filter(entityMetadataModel -> entityMetadataModel.getEntitySetName().equals(entitySetName))
+                    .findFirst();
+            if (edmModelFound.isPresent()) {
+                EntityMetadataModel edm = edmModelFound.get();
+                CsdlEntitySet entitySet = new CsdlEntitySet();
+                entitySet.setName(edm.getEntitySetName());
+                entitySet.setType(new FullQualifiedName(NAMESPACE, edm.getEntityType()));
+                return entitySet;
+            }
         }
         return null;
     }
 
     @Override
     public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) throws ODataException {
-        if(entityContainerName == null || entityContainerName.equals(entityContainerName)){
+        if (entityContainerName == null || entityContainerName.equals(entityContainerName)) {
             CsdlEntityContainerInfo entityContainerInfo = new CsdlEntityContainerInfo();
             entityContainerInfo.setContainerName(CONTAINER);
             return entityContainerInfo;
         }
-
         return null;
     }
 
@@ -84,28 +73,26 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     public List<CsdlSchema> getSchemas() throws ODataException {
         CsdlSchema schema = new CsdlSchema();
         schema.setNamespace(NAMESPACE);
-
         List<CsdlEntityType> entityTypes = new ArrayList<CsdlEntityType>();
-        entityTypes.add(getEntityType(ET_TASK_FQN));
+        for (EntityMetadataModel metadataModel : this.entityMetadata) {
+            entityTypes.add(getEntityType(new FullQualifiedName(NAMESPACE, metadataModel.getEntityType())));
+        }
         schema.setEntityTypes(entityTypes);
-
         schema.setEntityContainer(getEntityContainer());
-
         List<CsdlSchema> schemaList = new ArrayList<CsdlSchema>();
         schemaList.add(schema);
-
         return schemaList;
     }
 
     @Override
     public CsdlEntityContainer getEntityContainer() throws ODataException {
         List<CsdlEntitySet> entitySets = new ArrayList<CsdlEntitySet>();
-        entitySets.add(this.getEntitySet(CONTAINER, ES_TASKS_NAME));
-
+        for (EntityMetadataModel metadataModel : this.entityMetadata) {
+            entitySets.add(this.getEntitySet(CONTAINER, metadataModel.getEntitySetName()));
+        }
         CsdlEntityContainer entityContainer = new CsdlEntityContainer();
         entityContainer.setName(CONTAINER_NAME);
         entityContainer.setEntitySets(entitySets);
-
         return entityContainer;
     }
 }

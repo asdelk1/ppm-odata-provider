@@ -13,11 +13,9 @@ import org.apache.olingo.server.api.serializer.EntityCollectionSerializerOptions
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.UriInfo;
-import org.apache.olingo.server.api.uri.UriResource;
 import org.apache.olingo.server.api.uri.UriResourceEntitySet;
 
 import java.io.InputStream;
-import java.util.List;
 
 public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
 
@@ -30,11 +28,10 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
     }
 
     public void readEntityCollection(ODataRequest oDataRequest, ODataResponse oDataResponse, UriInfo uriInfo, ContentType contentType) throws ODataApplicationException, ODataLibraryException {
-        List<UriResource> resourcePaths = uriInfo.getUriResourceParts();
-        UriResourceEntitySet uriResourceEntitySet = (UriResourceEntitySet) resourcePaths.get(0);
-        EdmEntitySet edmEntitySet = uriResourceEntitySet.getEntitySet();
+       UriResourceEntitySet resourceEntitySet = PpmEntityUtil.getUriResourceEntitySet(uriInfo);
+       EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
 
-        EntityCollection entitySet = new EntityServiceHandler().getData(edmEntitySet);
+        EntityCollection entitySet = new EntityServiceHandler().readEntitySetData(edmEntitySet);
 
         ODataSerializer serializer = this.odata.createSerializer(contentType);
 

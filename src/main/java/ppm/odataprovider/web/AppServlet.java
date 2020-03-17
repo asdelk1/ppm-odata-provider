@@ -4,10 +4,14 @@ import org.apache.olingo.commons.api.edmx.EdmxReference;
 import org.apache.olingo.server.api.OData;
 import org.apache.olingo.server.api.ODataHttpHandler;
 import org.apache.olingo.server.api.ServiceMetadata;
+import org.apache.olingo.server.api.debug.DebugSupport;
+import org.apache.olingo.server.api.debug.DefaultDebugSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ppm.odataprovider.service.PpmEdmProvider;
 import ppm.odataprovider.service.PpmEntityCollectionProcessor;
+import ppm.odataprovider.service.PpmEntityProcessor;
+import ppm.odataprovider.service.PpmPrimitiveProcessor;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -28,6 +32,13 @@ public class AppServlet extends HttpServlet {
             ServiceMetadata edm = odata.createServiceMetadata(new PpmEdmProvider(), new ArrayList<EdmxReference>());
             ODataHttpHandler handler = odata.createHandler(edm);
             handler.register(new PpmEntityCollectionProcessor());
+            handler.register(new PpmEntityProcessor());
+            handler.register(new PpmPrimitiveProcessor());
+
+            //Add debug support
+            DebugSupport ds = new DefaultDebugSupport();
+            ds.init(odata);
+            handler.register(ds);
 
             // let the handler do the work
             handler.process(req, resp);
