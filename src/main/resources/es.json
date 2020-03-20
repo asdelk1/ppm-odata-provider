@@ -1,0 +1,11 @@
+[
+  {
+    "entitySetName": "Tasks",
+    "entityType": "Task",
+    "entityClass": "ppm.odataprovider.app.task.Task",
+    "serviceClass": "ppm.odataprovider.app.task.TaskService",
+    "keys": ["taskId"]
+  }
+]
+
+
