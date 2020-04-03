@@ -17,13 +17,6 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     public static final String CONTAINER_NAME = "Project   Container";
     public static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
 
-    // Entity Types Names
-    public static final String ET_TASK_NAME = "Task";
-//    public static final FullQualifiedName ET_TASK_FQN = new FullQualifiedName(NAMESPACE, ET_TASK_NAME);
-
-    // Entity Set Names
-    public static final String ES_TASKS_NAME = "Tasks";
-
     private EntityMetadataModel[] entityMetadata;
 
     public PpmEdmProvider() {

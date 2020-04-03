@@ -1,0 +1,12 @@
+[{
+  "personId": 1,
+  "firstName": "Asitha",
+  "lastName": "De Alwis",
+  "department": "Gantt"
+},
+  {
+    "personId": 2,
+    "firstName": "Kumeri",
+    "lastName": "Jayasenthu",
+    "department": "Calendar"
+  }]
