@@ -14,6 +14,7 @@ import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.UriInfo;
 import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import ppm.odataprovider.data.EntityDataHelper;
 
 import java.io.InputStream;
 
@@ -28,7 +29,7 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
     }
 
     public void readEntityCollection(ODataRequest oDataRequest, ODataResponse oDataResponse, UriInfo uriInfo, ContentType contentType) throws ODataApplicationException, ODataLibraryException {
-       UriResourceEntitySet resourceEntitySet = PpmEntityUtil.getUriResourceEntitySet(uriInfo);
+       UriResourceEntitySet resourceEntitySet = EntityDataHelper.getUriResourceEntitySet(uriInfo);
        EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
 
         EntityCollection entitySet = new EntityServiceHandler().readEntitySetData(edmEntitySet);
@@ -43,8 +44,13 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
         SerializerResult serializerResult = serializer.entityCollection(serviceMetadata, edmEntityType, entitySet, opts);
         InputStream serializedContent = serializerResult.getContent();
 
-        oDataResponse.setContent(serializedContent);
-        oDataResponse.setStatusCode(HttpStatusCode.OK.getStatusCode());
+        if (!entitySet.getEntities().isEmpty()) {
+            oDataResponse.setContent(serializedContent);
+            oDataResponse.setStatusCode(HttpStatusCode.OK.getStatusCode());
+
+        } else {
+            oDataResponse.setStatusCode(HttpStatusCode.NOT_FOUND.getStatusCode());
+        }
         oDataResponse.setHeader(HttpHeader.CONTENT_TYPE, contentType.toContentTypeString());
     }
 }

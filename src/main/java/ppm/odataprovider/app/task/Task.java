@@ -1,20 +1,26 @@
 package ppm.odataprovider.app.task;
 
 
+import ppm.odataprovider.app.person.Person;
+import ppm.odataprovider.data.ApplicationEntity;
+
 import javax.persistence.*;
 import java.util.Date;
+import java.util.UUID;
 
 @Entity
-@Table(name = "task")
-public class Task {
+@Table(name = "tasks")
+public class Task implements ApplicationEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name="TASK_ID")
-    private long taskId;
+    @Column(name="entity_id", nullable = false, insertable = false, updatable = false)
+    protected String entityId;
+
+    @Column(name = "TASK_ID")
+    private String taskId;
     @Column(name = "NAME", nullable = false)
     private String name;
-    @Column(name = "DATE_CREATED", nullable = false, updatable = false, insertable = false)
+    @Column(name = "DATE_CREATED", nullable = false, updatable = false)
     private Date dateCreated;
     @Column(name = "EARLY_START", nullable = false)
     private Date earlyStart;
@@ -26,32 +32,34 @@ public class Task {
     private Date lateFinish;
     @Column(name = "FREE_FLOAT", nullable = false)
     private double freeFloat;
-    @Column(name = "TOTAL_FLOAT")
+    @Column(name = "TOTAL_FLOAT", nullable = false)
     private double totalFloat;
-    @Column(name = "ASSIGNEE", nullable = false)
-    private String assignee;
 
-    public Task(){
+    @ManyToOne()
+    @JoinColumn(name = "person_id", referencedColumnName = "entity_id")
+    private Person assignee;
+
+
+    @Override
+    public void init() {
+        this.entityId = UUID.randomUUID().toString();
         this.dateCreated = new Date();
     }
 
-//    public Task(String name, Date dateCreated, Date earlyStart, Date earlyFinish, Date lateStart, Date lateFinish, double freeFloat, double totalFloat, String assignee) {
-//        this.name = name;
-//        this.dateCreated = dateCreated;
-//        this.earlyStart = earlyStart;
-//        this.earlyFinish = earlyFinish;
-//        this.lateStart = lateStart;
-//        this.lateFinish = lateFinish;
-//        this.freeFloat = freeFloat;
-//        this.totalFloat = totalFloat;
-//        this.assignee = assignee;
-//    }
+    public String getEntityId() {
+        return entityId;
+    }
 
-    public long getTaskId() {
+    @Override
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
+    }
+
+    public String getTaskId() {
         return taskId;
     }
 
-    public void setTaskId(long taskId) {
+    public void setTaskId(String taskId) {
         this.taskId = taskId;
     }
 
@@ -68,9 +76,9 @@ public class Task {
     }
 
     public void setDateCreated(Date dateCreated) {
-        if(dateCreated == null){
+        if (dateCreated == null) {
             dateCreated = new Date();
-        }else {
+        } else {
             this.dateCreated = dateCreated;
         }
     }
@@ -123,11 +131,11 @@ public class Task {
         this.totalFloat = totalFloat;
     }
 
-    public String getAssignee() {
+    public Person getAssignee() {
         return assignee;
     }
 
-    public void setAssignee(String assignee) {
+    public void setAssignee(Person assignee) {
         this.assignee = assignee;
     }
 }

@@ -5,6 +5,13 @@
     "entityClass": "ppm.odataprovider.app.task.Task",
     "serviceClass": "ppm.odataprovider.app.task.TaskService",
     "keys": ["taskId"]
+  },
+  {
+    "entitySetName": "Persons",
+    "entityType": "Person",
+    "entityClass": "ppm.odataprovider.app.person.Person",
+    "serviceClass": "ppm.odataprovider.app.person.PersonService",
+    "keys": ["personId"]
   }
 ]
 

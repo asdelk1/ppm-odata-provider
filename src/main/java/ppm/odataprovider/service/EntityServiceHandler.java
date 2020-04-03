@@ -3,6 +3,8 @@ package ppm.odataprovider.service;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
+import org.apache.olingo.commons.api.edm.EdmEntityType;
+import org.apache.olingo.commons.api.http.HttpMethod;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
 import org.apache.olingo.server.api.uri.UriParameter;
@@ -33,11 +35,11 @@ public class EntityServiceHandler {
         EntityCollection entityCollection;
         try {
             PpmODataGenericService service = getServiceClass(edmEntitySet);
-            entityCollection = service.getAll(edmEntitySet.getName());
+            entityCollection = service.getAll(edmEntitySet, this.getEntityClass(edmEntitySet.getEntityType()));
 // if there is no data need to raise an error, not sure this is the correct way might need to change it later.
-            if (entityCollection.getEntities().isEmpty()) {
-                throw new ODataApplicationException("", HttpStatusCode.NO_CONTENT.getStatusCode(), Locale.ENGLISH);
-            }
+//            if (entityCollection.getEntities().isEmpty()) {
+//                throw new ODataApplicationException("", HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
+//            }
         } catch (Exception e) {
             throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
@@ -48,25 +50,41 @@ public class EntityServiceHandler {
         Entity entity;
         try {
             PpmODataGenericService service = getServiceClass(edmEntitySet);
-            entity = service.getEntity(edmEntitySet.getEntityType(), edmEntitySet, keyParams);
-            if (entity.getProperties().isEmpty()) {
-                throw new ODataApplicationException("", HttpStatusCode.NO_CONTENT.getStatusCode(), Locale.ENGLISH);
-            }
+            entity = service.getEntity(edmEntitySet, this.getEntityClass(edmEntitySet.getEntityType()), keyParams);
+
         } catch (Exception e) {
             throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
         return entity;
     }
 
-    public Entity saveEntity(EdmEntitySet edmEntitySet, Entity entity) throws ODataApplicationException{
+    public Entity saveEntity(EdmEntitySet edmEntitySet, Entity entity) throws ODataApplicationException {
         Entity createdEntity;
-        try{
+        try {
             PpmODataGenericService service = getServiceClass(edmEntitySet);
-            createdEntity = service.saveEntity(edmEntitySet.getEntityType(), edmEntitySet, entity);
-        }catch(Exception ex){
+            createdEntity = service.saveEntity(edmEntitySet, this.getEntityClass(edmEntitySet.getEntityType()), entity);
+        } catch (Exception ex) {
             throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
         return createdEntity;
+    }
+
+    public void updateEntity(EdmEntitySet edmEntitySet, List<UriParameter> keyParams, Entity entity, HttpMethod httpMethod) throws ODataApplicationException {
+        try {
+            PpmODataGenericService service = getServiceClass(edmEntitySet);
+            service.updateEntity(edmEntitySet, this.getEntityClass(edmEntitySet.getEntityType()), entity, keyParams, httpMethod);
+        } catch (Exception ex) {
+            throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+        }
+    }
+
+    public void deleteEntity(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) throws ODataApplicationException {
+        try {
+            PpmODataGenericService service = getServiceClass(edmEntitySet);
+            service.deleteEntity(edmEntitySet, this.getEntityClass(edmEntitySet.getEntityType()), keyParams);
+        } catch (Exception ex) {
+            throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+        }
     }
 
     private PpmODataGenericService getServiceClass(EdmEntitySet entitySet) throws Exception {
@@ -84,5 +102,13 @@ public class EntityServiceHandler {
         return service;
     }
 
-
+    private Class getEntityClass(EdmEntityType edmEntityType) throws ClassNotFoundException {
+        Class entityClazz = null;
+        Optional<EntityMetadataModel> dataModelOptional = Arrays.stream(this.edm).filter(m -> m.getEntityType().equals(edmEntityType.getName())).findFirst();
+        if (dataModelOptional.isPresent()) {
+            EntityMetadataModel metadataModel = dataModelOptional.get();
+            entityClazz = Thread.currentThread().getContextClassLoader().loadClass(metadataModel.getEntityClass());
+        }
+        return entityClazz;
+    }
 }

@@ -1,0 +1,35 @@
+[
+  {
+    "taskId": "TASK101",
+    "name": "My Task",
+    "earlyStart": "2020-02-28T16:00:00.000Z",
+    "earlyFinish": "2020-02-28T16:00:00.000Z",
+    "lateStart": "2020-02-29T16:00:00.000Z",
+    "lateFinish": "2020-02-29T16:00:00.000Z",
+    "freeFloat": 0,
+    "totalFloat": 0,
+    "assignee": "ASDELK"
+  },
+  {
+    "taskId": "TASK102",
+    "name": "My Task 2",
+    "earlyStart": "2020-02-28T16:00:00.000Z",
+    "earlyFinish": "2020-02-28T16:00:00.000Z",
+    "lateStart": "2020-02-29T16:00:00.000Z",
+    "lateFinish": "2020-02-29T16:00:00.000Z",
+    "freeFloat": 0,
+    "totalFloat": 0,
+    "assignee": "ASDELK"
+  },
+  {
+    "taskId": "TASK103",
+    "name": "My Task 3",
+    "earlyStart": "2020-02-28T16:00:00.000Z",
+    "earlyFinish": "2020-02-28T16:00:00.000Z",
+    "lateStart": "2020-02-29T16:00:00.000Z",
+    "lateFinish": "2020-02-29T16:00:00.000Z",
+    "freeFloat": 0,
+    "totalFloat": 0,
+    "assignee": "KUMJLK"
+  }
+]
