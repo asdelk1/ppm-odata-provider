@@ -14,7 +14,7 @@ public class Task implements ApplicationEntity {
 
     @Id
     @Column(name="entity_id", nullable = false, insertable = false, updatable = false)
-    protected String entityId;
+    private String entityId;
 
     @Column(name = "TASK_ID")
     private String taskId;
@@ -36,9 +36,8 @@ public class Task implements ApplicationEntity {
     private double totalFloat;
 
     @ManyToOne()
-    @JoinColumn(name = "person_id", referencedColumnName = "entity_id")
+    @JoinColumn(name = "assignee", referencedColumnName = "entity_id")
     private Person assignee;
-
 
     @Override
     public void init() {
@@ -77,7 +76,7 @@ public class Task implements ApplicationEntity {
 
     public void setDateCreated(Date dateCreated) {
         if (dateCreated == null) {
-            dateCreated = new Date();
+            this.dateCreated = new Date();
         } else {
             this.dateCreated = dateCreated;
         }

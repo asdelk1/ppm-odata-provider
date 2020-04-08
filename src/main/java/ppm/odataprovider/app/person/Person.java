@@ -1,15 +1,14 @@
 package ppm.odataprovider.app.person;
 
+import ppm.odataprovider.app.task.Task;
 import ppm.odataprovider.data.ApplicationEntity;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.List;
 import java.util.UUID;
 
 @Entity()
-@Table(name ="person")
+@Table(name = "persons")
 public class Person implements ApplicationEntity {
 
     @Id
@@ -24,6 +23,9 @@ public class Person implements ApplicationEntity {
     private String lastName;
     @Column(name = "department", nullable = false)
     private String department;
+
+    @OneToMany(mappedBy = "assignee")
+    private List<Task> tasks;
 
     @Override
     public void init() {
@@ -72,4 +74,15 @@ public class Person implements ApplicationEntity {
         this.department = department;
     }
 
+    public void setPersonId(long personId) {
+        this.personId = personId;
+    }
+
+    public List<Task> getTasks() {
+        return tasks;
+    }
+
+    public void setTasks(List<Task> tasks) {
+        this.tasks = tasks;
+    }
 }

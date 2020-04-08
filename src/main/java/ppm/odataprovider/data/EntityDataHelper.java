@@ -89,10 +89,10 @@ public class EntityDataHelper {
                 Field field = entityClazz.getDeclaredField(keyName);
                 Class type = field.getType();
                 String valueAsString = keyParam.getText().replace("'", "");
-                if (type.equals(Integer.class.getName()) || type.equals("int") || type.equals(Long.class.getName()) || type.equals("long")) {
+                if (type.equals(Integer.class) || type.getName().equals("int") || type.equals(Long.class) || type.getName().equals("long")) {
                     params.put(keyParam.getName(), Long.parseLong(valueAsString));
                     continue;
-                } else if (type.equals(Double.class.getName()) || type.equals("double")) {
+                } else if (type.equals(Double.class) || type.equals("double")) {
                     params.put(keyParam.getName(), Double.parseDouble(valueAsString));
                     continue;
                 }

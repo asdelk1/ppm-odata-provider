@@ -23,8 +23,8 @@ public abstract class PpmODataGenericService {
     public EntityCollection getAll(EdmEntitySet entitySet, Class entityClazz) {
         EntityCollection entityCollection = new EntityCollection();
         List<Entity> entityList = entityCollection.getEntities();
-        List<Object> taskList = EntityRepository.findAll(entityClazz);
-        for (Object task : taskList) {
+        List<Object> resultSet = EntityRepository.findAll(entityClazz);
+        for (Object task : resultSet) {
             Entity entity = EntityDataHelper.toEntity(entityClazz, task, entitySet.getName());
             entityList.add(entity);
         }
@@ -59,8 +59,7 @@ public abstract class PpmODataGenericService {
     }
 
     public Entity saveEntity(EdmEntitySet edmEntitySet,Class entityClazz, Entity entity) throws ODataApplicationException {
-        EdmEntityType entityType = edmEntitySet.getEntityType();
-        Entity createdEntity = null;
+        Entity createdEntity;
         try {
             ApplicationEntity createdObject = EntityDataHelper.fromEntity(entityClazz, entity);
             createdObject.init();
