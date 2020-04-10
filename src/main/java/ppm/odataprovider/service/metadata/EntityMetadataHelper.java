@@ -1,8 +1,11 @@
 package ppm.odataprovider.service.metadata;
 
 import com.google.gson.Gson;
+import org.apache.olingo.commons.api.edm.EdmEntitySet;
+import org.apache.olingo.commons.api.edm.EdmEntityType;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import ppm.odataprovider.data.PpmODataGenericService;
 
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
@@ -13,6 +16,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.URISyntaxException;
@@ -83,8 +87,12 @@ public class EntityMetadataHelper {
         return type.equals(List.class) || type.equals(Map.class);
     }
 
-    public Optional<EntityMetadataModel> getEntityMetadataModel(String name) {
-        return Arrays.stream(this.entityMetadata).filter(model -> model.getEntityClass().equals(name)).findFirst();
+    public Optional<EntityMetadataModel> getEntityMetadataModelByEntitySet(String entitySetName) {
+        return Arrays.stream(this.entityMetadata).filter(model -> model.getEntitySetName().equals(entitySetName)).findFirst();
+    }
+
+    public Optional<EntityMetadataModel> getEntityMetadataModelByEntityClass(String entityClassName) {
+        return Arrays.stream(this.entityMetadata).filter(model -> model.getEntityClass().equals(entityClassName)).findFirst();
     }
 
     public Type getParameterizedType(Field field) {
@@ -95,6 +103,61 @@ public class EntityMetadataHelper {
             parameterizedType = pt.getActualTypeArguments()[0];
         }
         return parameterizedType;
+    }
+
+    public Map<String, Class> getEntitySetNavigationField(String entitySetName) {
+        Map<String, Class> navFields = new HashMap<>();
+        this.getEntitySetMetadata(entitySetName).ifPresent(metadata -> {
+            try {
+                Class entityClass = Thread.currentThread().getContextClassLoader().loadClass(metadata.getEntityClass());
+                for (Field field : entityClass.getDeclaredFields()) {
+                    if (this.isNavigationProperty(field)) {
+                        if (this.isCollectionType(field.getType())) {
+                            navFields.put(field.getName(), this.getParameterizedType(field).getClass());
+                        } else {
+                            navFields.put(field.getName(), field.getType());
+                        }
+                    }
+                }
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        });
+        return navFields;
+    }
+
+    public Optional<String> getEntitySetForEntityClass(String className) {
+        Optional<EntityMetadataModel> entityMetadataOptional = Arrays.stream(this.entityMetadata).filter(metadata -> metadata.getEntityClass().equals(className)).findFirst();
+        if (entityMetadataOptional.isPresent()) {
+            return Optional.of(entityMetadataOptional.get().getEntitySetName());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Class getEntityClass(EdmEntityType edmEntityType) throws ClassNotFoundException {
+        Class entityClazz = null;
+        Optional<EntityMetadataModel> dataModelOptional = Arrays.stream(this.entityMetadata).filter(m -> m.getEntityType().equals(edmEntityType.getName())).findFirst();
+        if (dataModelOptional.isPresent()) {
+            EntityMetadataModel metadataModel = dataModelOptional.get();
+            entityClazz = Thread.currentThread().getContextClassLoader().loadClass(metadataModel.getEntityClass());
+        }
+        return entityClazz;
+    }
+
+    public PpmODataGenericService getServiceClass(EdmEntitySet entitySet) throws Exception {
+        PpmODataGenericService service = null;
+        Optional<EntityMetadataModel> dataModelOptional = Arrays.stream(this.entityMetadata).filter(m -> m.getEntitySetName().equals(entitySet.getName())).findFirst();
+        try {
+            if (dataModelOptional.isPresent()) {
+                EntityMetadataModel model = dataModelOptional.get();
+                Class serviceClass = Thread.currentThread().getContextClassLoader().loadClass(model.getServiceClass());
+                service = (PpmODataGenericService) serviceClass.getConstructor().newInstance();
+            }
+        } catch (NoClassDefFoundError | ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+            throw new Exception(e.getMessage());
+        }
+        return service;
     }
 }
 

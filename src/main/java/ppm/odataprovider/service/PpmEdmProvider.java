@@ -7,10 +7,7 @@ import ppm.odataprovider.service.metadata.EntityMetadataHelper;
 import ppm.odataprovider.service.metadata.EntityMetadataModel;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class PpmEdmProvider extends CsdlAbstractEdmProvider {
 
@@ -58,8 +55,9 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
 
                         } else if (this.entityMetadata.isNavigationProperty(field)) {
                             boolean isCollection = this.entityMetadata.isCollectionType(field.getType());
-                            Optional<EntityMetadataModel> edmOptional = isCollection ? this.entityMetadata.getEntityMetadataModel(this.entityMetadata.getParameterizedType(field).getTypeName())
-                                    : this.entityMetadata.getEntityMetadataModel(field.getType().getName());
+                            Optional<EntityMetadataModel> edmOptional = isCollection ?
+                                    this.entityMetadata.getEntityMetadataModelByEntityClass(this.entityMetadata.getParameterizedType(field).getTypeName())
+                                    : this.entityMetadata.getEntityMetadataModelByEntityClass(field.getType().getName());
                             edmOptional.ifPresent(navModel -> {
                                 CsdlNavigationProperty navProp = new CsdlNavigationProperty()
                                         .setName(field.getName())
@@ -86,31 +84,26 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     @Override
     public CsdlEntitySet getEntitySet(FullQualifiedName entityContainer, String entitySetName) throws ODataException {
         if (entityContainer.equals(CONTAINER)) {
-            Optional<EntityMetadataModel> edmModelFound = this.entityMetadata.getEntityMetadataModel(entitySetName);
+            Optional<EntityMetadataModel> edmModelFound = this.entityMetadata.getEntityMetadataModelByEntitySet(entitySetName);
             if (edmModelFound.isPresent()) {
                 EntityMetadataModel edm = edmModelFound.get();
                 CsdlEntitySet entitySet = new CsdlEntitySet();
                 entitySet.setName(edm.getEntitySetName());
                 entitySet.setType(new FullQualifiedName(NAMESPACE, edm.getEntityType()));
 
-//                if(edm.getEntitySetName().equals("Persons")){
-//                    CsdlNavigationPropertyBinding navPropBinding = new CsdlNavigationPropertyBinding();
-//                    navPropBinding.setTarget("Task");//target entitySet, where the nav prop points to
-//                    navPropBinding.setPath("tasks"); // the path from entity type to navigation property
-//                    List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<CsdlNavigationPropertyBinding>();
-//                    navPropBindingList.add(navPropBinding);
-//                    entitySet.setNavigationPropertyBindings(navPropBindingList);
-//                }
-//
-//                if(edm.getEntitySetName().equals("Tasks")){
-//                    CsdlNavigationPropertyBinding navPropBinding = new CsdlNavigationPropertyBinding();
-//                    navPropBinding.setTarget("Persons");//target entitySet, where the nav prop points to
-//                    navPropBinding.setPath("person"); // the path from entity type to navigation property
-//                    List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<CsdlNavigationPropertyBinding>();
-//                    navPropBindingList.add(navPropBinding);
-//                    entitySet.setNavigationPropertyBindings(navPropBindingList);
-//                }
-
+                List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<>();
+                Map<String, Class> navFields = this.entityMetadata.getEntitySetNavigationField(entitySetName);
+                for (Map.Entry<String, Class> entry : navFields.entrySet()) {
+                    Optional<String> entitySetOptional = this.entityMetadata.getEntitySetForEntityClass(entry.getValue().getName());
+                    entitySetOptional.ifPresent(esName -> {
+                        CsdlNavigationPropertyBinding navPropBinding = new CsdlNavigationPropertyBinding();
+                        navPropBinding.setPath(entry.getKey());
+                        navPropBinding.setTarget(esName);
+                    });
+                }
+                if (!navPropBindingList.isEmpty()) {
+                    entitySet.setNavigationPropertyBindings(navPropBindingList);
+                }
                 return entitySet;
             }
         }
