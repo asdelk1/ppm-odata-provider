@@ -7,6 +7,7 @@ import ppm.odataprovider.service.metadata.EntityMetadataHelper;
 import ppm.odataprovider.service.metadata.EntityMetadataModel;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.*;
 
 public class PpmEdmProvider extends CsdlAbstractEdmProvider {
@@ -92,13 +93,14 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                 entitySet.setType(new FullQualifiedName(NAMESPACE, edm.getEntityType()));
 
                 List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<>();
-                Map<String, Class> navFields = this.entityMetadata.getEntitySetNavigationField(entitySetName);
-                for (Map.Entry<String, Class> entry : navFields.entrySet()) {
-                    Optional<String> entitySetOptional = this.entityMetadata.getEntitySetForEntityClass(entry.getValue().getName());
+                Map<String, Type> navFields = this.entityMetadata.getEntitySetNavigationField(entitySetName);
+                for (Map.Entry<String, Type> entry : navFields.entrySet()) {
+                    Optional<String> entitySetOptional = this.entityMetadata.getEntitySetForEntityClass(entry.getValue().getTypeName());
                     entitySetOptional.ifPresent(esName -> {
                         CsdlNavigationPropertyBinding navPropBinding = new CsdlNavigationPropertyBinding();
                         navPropBinding.setPath(entry.getKey());
                         navPropBinding.setTarget(esName);
+                        navPropBindingList.add(navPropBinding);
                     });
                 }
                 if (!navPropBindingList.isEmpty()) {

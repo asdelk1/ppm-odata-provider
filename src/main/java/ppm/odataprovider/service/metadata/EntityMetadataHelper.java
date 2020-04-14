@@ -105,15 +105,15 @@ public class EntityMetadataHelper {
         return parameterizedType;
     }
 
-    public Map<String, Class> getEntitySetNavigationField(String entitySetName) {
-        Map<String, Class> navFields = new HashMap<>();
+    public Map<String, Type> getEntitySetNavigationField(String entitySetName) {
+        Map<String, Type> navFields = new HashMap<>();
         this.getEntitySetMetadata(entitySetName).ifPresent(metadata -> {
             try {
                 Class entityClass = Thread.currentThread().getContextClassLoader().loadClass(metadata.getEntityClass());
                 for (Field field : entityClass.getDeclaredFields()) {
                     if (this.isNavigationProperty(field)) {
                         if (this.isCollectionType(field.getType())) {
-                            navFields.put(field.getName(), this.getParameterizedType(field).getClass());
+                            navFields.put(field.getName(), this.getParameterizedType(field));
                         } else {
                             navFields.put(field.getName(), field.getType());
                         }

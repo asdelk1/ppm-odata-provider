@@ -24,7 +24,7 @@ public class Person implements ApplicationEntity {
     @Column(name = "department", nullable = false)
     private String department;
 
-    @OneToMany(mappedBy = "assignee")
+    @OneToMany(fetch = FetchType.EAGER, mappedBy = "assignee")
     private List<Task> tasks;
 
     @Override

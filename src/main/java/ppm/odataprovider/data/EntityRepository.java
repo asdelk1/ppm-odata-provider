@@ -17,7 +17,7 @@ public class EntityRepository<T> {
         Criteria criteria = session.createCriteria(entityClazz);
         List<T> entityList = criteria.list();
         session.getTransaction().commit();
-        session.close();
+//        session.close();
         return entityList;
     }
 
@@ -30,7 +30,7 @@ public class EntityRepository<T> {
         if (!resultList.isEmpty()) {
             result = Optional.of(resultList);
         }
-        session.close();
+//        session.close();
         return result;
     }
 
@@ -41,7 +41,7 @@ public class EntityRepository<T> {
         if (entity != null) {
             result = Optional.of(entity);
         }
-        session.close();
+//        session.close();
         return result;
     }
 

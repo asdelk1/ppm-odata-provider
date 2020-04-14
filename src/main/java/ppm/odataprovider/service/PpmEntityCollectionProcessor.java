@@ -1,7 +1,6 @@
 package ppm.odataprovider.service;
 
 import org.apache.olingo.commons.api.data.ContextURL;
-import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
@@ -31,13 +30,6 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
     }
 
     public void readEntityCollection(ODataRequest oDataRequest, ODataResponse oDataResponse, UriInfo uriInfo, ContentType contentType) throws ODataApplicationException, ODataLibraryException {
-//       UriResourceEntitySet resourceEntitySet = EntityDataHelper.getUriResourceEntitySet(uriInfo);
-//       EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
-//
-//
-//        EntityCollection entitySet = new EntityServiceHandler().readEntitySetData(edmEntitySet);
-
-
         EdmEntitySet responseEntitySet = null; // for building ContextURL
         EntityCollection responseEntityCollection = null; // for the response body
 
@@ -61,15 +53,17 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
             if (navResource instanceof UriResourceNavigation) {
                 UriResourceNavigation uriResourceNavigation = (UriResourceNavigation) navResource;
                 EdmNavigationProperty edmNavigationProperty = uriResourceNavigation.getProperty();
-                EdmEntityType targetEntityType = edmNavigationProperty.getType();
+//                EdmEntityType targetEntityType = edmNavigationProperty.getType();
                 responseEntitySet = EntityServiceUtil.getNavigationTargetEntitySet(startEntitySet, edmNavigationProperty);
 
                 List<UriParameter> keyPredicates = uriResourceEntitySet.getKeyPredicates();
-                Entity sourceEntity = serviceHandler.readEntityData(startEntitySet, keyPredicates);
+                responseEntityCollection = serviceHandler.readRelatedEntitySetData(startEntitySet, responseEntitySet, keyPredicates, edmNavigationProperty.getName());
 
-                if (sourceEntity == null) {
+                if (responseEntityCollection == null) {
                     throw new ODataApplicationException("Entity not found.", HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ROOT);
                 }
+            } else {
+                throw new ODataApplicationException("Not supported", HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
             }
         }
 
