@@ -61,7 +61,6 @@ public class PpmEntityProcessor implements EntityProcessor {
                     // e.g. DemoService.svc/Products(1)/Category
                     responseEntity = entityServiceHandler.readRelatedEntityData(sourceEntitySet, responseEntitySet, keyPredicates, navProp.getName());
                 } else { // e.g. DemoService.svc/Categories(3)/Products(5)
-//                    TODO: Add second level navigation
                     List<UriParameter> mergedParams = new ArrayList<>(keyPredicates);
                     mergedParams.addAll(navKeyPredicates);
                     responseEntity = entityServiceHandler.readRelatedEntityData(sourceEntitySet, responseEntitySet, mergedParams, navProp.getName(), navKeyPredicates);

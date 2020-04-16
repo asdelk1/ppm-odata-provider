@@ -71,7 +71,7 @@ public class EntityMetadataHelper {
         return isPrimitive;
     }
 
-    public boolean isNavigationProperty(Field field) {
+    public static boolean isNavigationProperty(Field field) {
         Annotation[] fieldAnnotations = field.getDeclaredAnnotations();
         return Arrays.stream(fieldAnnotations).anyMatch(a -> {
                     Class annotationClass = a.annotationType();
@@ -83,7 +83,7 @@ public class EntityMetadataHelper {
         );
     }
 
-    public boolean isCollectionType(Class type) {
+    public static boolean isCollectionType(Class type) {
         return type.equals(List.class) || type.equals(Map.class);
     }
 

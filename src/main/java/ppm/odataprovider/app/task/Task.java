@@ -36,7 +36,7 @@ public class Task implements ApplicationEntity {
     private double totalFloat;
 
     @ManyToOne()
-    @JoinColumn(name = "assignee", referencedColumnName = "entity_id")
+    @JoinColumn(name = "assignee", referencedColumnName = "entity_id", nullable = false)
     private Person assignee;
 
     @Override
