@@ -4,6 +4,7 @@ import org.apache.olingo.commons.api.data.ContextURL;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
+import org.apache.olingo.commons.api.edm.EdmNavigationProperty;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpHeader;
 import org.apache.olingo.commons.api.http.HttpMethod;
@@ -15,14 +16,13 @@ import org.apache.olingo.server.api.processor.EntityProcessor;
 import org.apache.olingo.server.api.serializer.EntitySerializerOptions;
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
-import org.apache.olingo.server.api.uri.UriInfo;
-import org.apache.olingo.server.api.uri.UriParameter;
-import org.apache.olingo.server.api.uri.UriResource;
-import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import org.apache.olingo.server.api.uri.*;
 import ppm.odataprovider.data.EntityDataHelper;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class PpmEntityProcessor implements EntityProcessor {
 
@@ -32,23 +32,61 @@ public class PpmEntityProcessor implements EntityProcessor {
     @Override
     public void readEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo, ContentType responseFormat) throws ODataApplicationException, ODataLibraryException {
 
+        EdmEntitySet responseEntitySet = null;
+        Entity responseEntity = null;
+        EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
+
         // 1. retrieve the Entity Type
-        UriResourceEntitySet resourceEntitySet = EntityDataHelper.getUriResourceEntitySet(uriInfo);
-        EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
+        List<UriResource> uriResources = uriInfo.getUriResourceParts();
+        UriResource firstUriResource = uriResources.get(0);
+        if (!(firstUriResource instanceof UriResourceEntitySet)) {
+            throw new ODataApplicationException("Only EntitySet is supported", HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        }
+        int segmentCount = uriResources.size();
+
+        UriResourceEntitySet resourceEntitySet = (UriResourceEntitySet) firstUriResource;
+        EdmEntitySet sourceEntitySet = resourceEntitySet.getEntitySet();
+        List<UriParameter> keyPredicates = resourceEntitySet.getKeyPredicates();
+        if (segmentCount == 1) {
+            responseEntitySet = sourceEntitySet;
+            responseEntity = entityServiceHandler.readEntityData(sourceEntitySet, keyPredicates);
+        } else if (segmentCount == 2) {
+            UriResource secondUriResource = uriResources.get(1);
+            if (secondUriResource instanceof UriResourceNavigation) {
+                UriResourceNavigation uriResourceNavigation = (UriResourceNavigation) secondUriResource;
+                EdmNavigationProperty navProp = uriResourceNavigation.getProperty();
+                responseEntitySet = EntityServiceUtil.getNavigationTargetEntitySet(sourceEntitySet, navProp);
+                List<UriParameter> navKeyPredicates = uriResourceNavigation.getKeyPredicates();
+                if (navKeyPredicates.isEmpty()) {
+                    // e.g. DemoService.svc/Products(1)/Category
+                    responseEntity = entityServiceHandler.readRelatedEntityData(sourceEntitySet, responseEntitySet, keyPredicates, navProp.getName());
+                } else { // e.g. DemoService.svc/Categories(3)/Products(5)
+                    List<UriParameter> mergedParams = new ArrayList<>(keyPredicates);
+                    mergedParams.addAll(navKeyPredicates);
+                    responseEntity = entityServiceHandler.readRelatedEntityData(sourceEntitySet, responseEntitySet, mergedParams, navProp.getName(), navKeyPredicates);
+//
+                }
+            }
+        } else {
+            throw new ODataApplicationException("Not Supported URL", HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
+        }
+
+
+//        EdmEntitySet edmEntitySet =
 
 
         // 2. retrieve the data from backend
-        List<UriParameter> keyPredicates = resourceEntitySet.getKeyPredicates();
-        Entity entity = new EntityServiceHandler().readEntityData(edmEntitySet, keyPredicates);
+
+//        Entity entity = new EntityServiceHandler().readEntityData(edmEntitySet, keyPredicates);
 
         // 3. serialize
-        EdmEntityType entityType = edmEntitySet.getEntityType();
-        ContextURL contextUrl = ContextURL.with().entitySet(edmEntitySet).build();
+        EdmEntityType entityType = responseEntitySet.getEntityType();
+        ContextURL contextUrl = ContextURL.with().entitySet(responseEntitySet).build();
         // expand and select currently not supported
         EntitySerializerOptions options = EntitySerializerOptions.with().contextURL(contextUrl).build();
 
         ODataSerializer serializer = odata.createSerializer(responseFormat);
-        SerializerResult serializerResult = serializer.entity(serviceMetadata, entityType, entity, options);
+        SerializerResult serializerResult = serializer.entity(serviceMetadata, entityType, responseEntity, options);
         InputStream entityStream = serializerResult.getContent();
 
         //4. configure the response object
@@ -90,7 +128,7 @@ public class PpmEntityProcessor implements EntityProcessor {
     @Override
     public void updateEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo, ContentType requestFormat, ContentType responseFormat) throws ODataApplicationException, ODataLibraryException {
         // 1. Retrieve the entity set which belongs to the requested entity
-        UriResourceEntitySet resourceEntitySet =  EntityDataHelper.getUriResourceEntitySet(uriInfo);
+        UriResourceEntitySet resourceEntitySet = EntityDataHelper.getUriResourceEntitySet(uriInfo);
         EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
         EdmEntityType edmEntityType = edmEntitySet.getEntityType();
 
@@ -116,7 +154,7 @@ public class PpmEntityProcessor implements EntityProcessor {
 
         // 1. Retrieve the entity set which belongs to the requested entity
         List<UriResource> resourcePaths = uriInfo.getUriResourceParts();
-        UriResourceEntitySet resourceEntitySet =  EntityDataHelper.getUriResourceEntitySet(uriInfo);
+        UriResourceEntitySet resourceEntitySet = EntityDataHelper.getUriResourceEntitySet(uriInfo);
         EdmEntitySet edmEntitySet = resourceEntitySet.getEntitySet();
 
         // 2. delete the data in backend

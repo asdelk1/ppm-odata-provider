@@ -2,6 +2,7 @@ package ppm.odataprovider.data;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.olingo.commons.api.data.Entity;
+import org.apache.olingo.commons.api.data.Link;
 import org.apache.olingo.commons.api.data.Property;
 import org.apache.olingo.commons.api.data.ValueType;
 import org.apache.olingo.commons.api.ex.ODataRuntimeException;
@@ -11,6 +12,7 @@ import org.apache.olingo.server.api.uri.UriInfoResource;
 import org.apache.olingo.server.api.uri.UriParameter;
 import org.apache.olingo.server.api.uri.UriResource;
 import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import ppm.odataprovider.service.metadata.EntityMetadataHelper;
 
 import javax.persistence.Id;
 import java.lang.annotation.Annotation;
@@ -30,6 +32,10 @@ public class EntityDataHelper {
         Entity entity = new Entity();
         URI id = null;
         for (Field field : dataClass.getDeclaredFields()) {
+            if (EntityMetadataHelper.isNavigationProperty(field)) {
+                continue;
+            }
+
             String getterName = "get" + StringUtils.capitalize(field.getName());
             try {
                 Annotation keyAnnotation = field.getAnnotation(Id.class);
@@ -58,17 +64,32 @@ public class EntityDataHelper {
         Constructor constructor = entityClass.getConstructor();
         T obj = (T) constructor.newInstance();
 
-        for (Property property : entity.getProperties()) {
-            String setterName = "set" + StringUtils.capitalize(property.getName());
-            Field field = entityClass.getDeclaredField(property.getName());
-            Class fieldType = field.getType();
-            Method setter = entityClass.getMethod(setterName, fieldType);
-            if (setter != null) {
-//                throw new NoSuchMethodException(String.format("%s method not found", setterName));
-                setter.invoke(obj, property.getValue());
+        Field[] fields = entityClass.getDeclaredFields();
+        for (Field field : fields) {
+
+            if (EntityMetadataHelper.isNavigationProperty(field)) {
+                Link navigationLink = entity.getNavigationLink(field.getName());
+                if (!EntityMetadataHelper.isCollectionType(field.getType()) && navigationLink != null) {
+                    invokeGetter(entityClass, obj, field, field.getName(), fromEntity(field.getType(), navigationLink.getInlineEntity()));
+                }
+            } else {
+                Property property = entity.getProperty(field.getName());
+                if (property == null) {
+                    continue;
+                }
+                invokeGetter(entityClass, obj, field, field.getName(), property.getValue());
             }
         }
         return obj;
+    }
+
+    private static <T> void invokeGetter(Class entityClass, T obj, Field field, String property, Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        String setterName = "set" + StringUtils.capitalize(property);
+        Class fieldType = field.getType();
+        Method setter = entityClass.getMethod(setterName, fieldType);
+        if (setter != null) {
+            setter.invoke(obj, value);
+        }
     }
 
     public static UriResourceEntitySet getUriResourceEntitySet(UriInfoResource uriInfo) throws ODataApplicationException {
@@ -89,10 +110,10 @@ public class EntityDataHelper {
                 Field field = entityClazz.getDeclaredField(keyName);
                 Class type = field.getType();
                 String valueAsString = keyParam.getText().replace("'", "");
-                if (type.equals(Integer.class.getName()) || type.equals("int") || type.equals(Long.class.getName()) || type.equals("long")) {
+                if (type.equals(Integer.class) || type.getName().equals("int") || type.equals(Long.class) || type.getName().equals("long")) {
                     params.put(keyParam.getName(), Long.parseLong(valueAsString));
                     continue;
-                } else if (type.equals(Double.class.getName()) || type.equals("double")) {
+                } else if (type.equals(Double.class) || type.equals("double")) {
                     params.put(keyParam.getName(), Double.parseDouble(valueAsString));
                     continue;
                 }
