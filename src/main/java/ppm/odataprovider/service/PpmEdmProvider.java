@@ -4,7 +4,7 @@ import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.olingo.commons.api.edm.provider.*;
 import org.apache.olingo.commons.api.ex.ODataException;
 import ppm.odataprovider.service.metadata.EntityMetadataHelper;
-import ppm.odataprovider.service.metadata.EntityMetadataModel;
+import ppm.odataprovider.service.metadata.EntityTypeMetadata;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -23,7 +23,7 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
 
     public PpmEdmProvider() {
         try {
-            this.entityMetadata = new EntityMetadataHelper();
+            this.entityMetadata = EntityMetadataHelper.getInstance();
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -36,46 +36,51 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
             List<CsdlProperty> properties = new ArrayList<>();
             List<CsdlPropertyRef> keyref = new ArrayList<>();
             List<CsdlNavigationProperty> navPropList = new ArrayList<>();
-            for (EntityMetadataModel model : this.entityMetadata.getEntityMetadata()) {
-                FullQualifiedName modelFqn = new FullQualifiedName(PpmEdmProvider.NAMESPACE, model.getEntityType());
-                if (modelFqn.equals(entityTypeName)) {
-                    Class entityClass = Thread.currentThread().getContextClassLoader().loadClass(model.getEntityClass());
-                    Field[] classFields = entityClass.getDeclaredFields();
-                    for (Field field : classFields) {
-                        if (this.entityMetadata.isPrimitiveType(field.getType())) {
+//            for (EntityTypeMetadata model : this.entityMetadata.getEntityMetadata()) {
+            Optional<EntityTypeMetadata> entityTypeMetadataOptional = this.entityMetadata.getEntity(entityTypeName.getName());
+            if (entityTypeMetadataOptional.isPresent()) {
+                EntityTypeMetadata model = entityTypeMetadataOptional.get();
+                Class entityClass = Thread.currentThread().getContextClassLoader().loadClass(model.getEntityClass());
+                Field[] classFields = entityClass.getDeclaredFields();
+                for (Field field : classFields) {
+                    if (this.entityMetadata.isPrimitiveType(field.getType())) {
 
-                            properties.add(new CsdlProperty()
+                        properties.add(new CsdlProperty()
+                                .setName(field.getName())
+                                .setType(this.entityMetadata.getODataPrimitiveDataType(field.getType().getName())));
+
+                        Optional<String> keyProperty = Arrays.stream(model.getKeys())
+                                .filter(k -> k.equals(field.getName()))
+                                .findFirst();
+
+                        keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
+
+                    } else if (this.entityMetadata.isNavigationProperty(field)) {
+                        boolean isCollection = this.entityMetadata.isCollectionType(field.getType());
+
+                        Optional<String> navEntitySetOptional = isCollection ?
+                                this.entityMetadata.getEntitySetForEntityClass(this.entityMetadata.getParameterizedType(field).getTypeName())
+                                : this.entityMetadata.getEntitySetForEntityClass(field.getType().getName());
+
+                        if (navEntitySetOptional.isPresent()) {
+                            String navEntityTypeName = this.entityMetadata.getEntitySetTypeName(navEntitySetOptional.get());
+                            CsdlNavigationProperty navProp = new CsdlNavigationProperty()
                                     .setName(field.getName())
-                                    .setType(this.entityMetadata.getODataPrimitiveDataType(field.getType().getName())));
-
-                            Optional<String> keyProperty = Arrays.stream(model.getKeys())
-                                    .filter(k -> k.equals(field.getName()))
-                                    .findFirst();
-
-                            keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
-
-                        } else if (this.entityMetadata.isNavigationProperty(field)) {
-                            boolean isCollection = this.entityMetadata.isCollectionType(field.getType());
-                            Optional<EntityMetadataModel> edmOptional = isCollection ?
-                                    this.entityMetadata.getEntityMetadataModelByEntityClass(this.entityMetadata.getParameterizedType(field).getTypeName())
-                                    : this.entityMetadata.getEntityMetadataModelByEntityClass(field.getType().getName());
-                            edmOptional.ifPresent(navModel -> {
-                                CsdlNavigationProperty navProp = new CsdlNavigationProperty()
-                                        .setName(field.getName())
-                                        .setType(new FullQualifiedName(PpmEdmProvider.NAMESPACE, navModel.getEntityType()))
-                                        .setCollection(isCollection)
-                                        .setNullable(false);
+                                    .setType(new FullQualifiedName(PpmEdmProvider.NAMESPACE, navEntityTypeName))
+                                    .setCollection(isCollection)
+                                    .setNullable(false);
 //                                        .setPartner(model.getEntitySetName());
-                                navPropList.add(navProp);
-                            });
+                            navPropList.add(navProp);
+
                         }
                     }
-                    entityType.setName(model.getEntityType());
-                    entityType.setProperties(properties);
-                    entityType.setKey(keyref);
-                    entityType.setNavigationProperties(navPropList);
                 }
+                entityType.setName(entityTypeName.getName());
+                entityType.setProperties(properties);
+                entityType.setKey(keyref);
+                entityType.setNavigationProperties(navPropList);
             }
+//            }
             return entityType;
         } catch (Exception e) {
             throw new ODataException(e.getMessage());
@@ -85,15 +90,15 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     @Override
     public CsdlEntitySet getEntitySet(FullQualifiedName entityContainer, String entitySetName) throws ODataException {
         if (entityContainer.equals(CONTAINER)) {
-            Optional<EntityMetadataModel> edmModelFound = this.entityMetadata.getEntityMetadataModelByEntitySet(entitySetName);
-            if (edmModelFound.isPresent()) {
-                EntityMetadataModel edm = edmModelFound.get();
+
+            if (this.entityMetadata.isEntitySetExists(entitySetName)) {
+                EntityTypeMetadata entityTypeMetadata = this.entityMetadata.getEntitySetType(entitySetName).get();
                 CsdlEntitySet entitySet = new CsdlEntitySet();
-                entitySet.setName(edm.getEntitySetName());
-                entitySet.setType(new FullQualifiedName(NAMESPACE, edm.getEntityType()));
+                entitySet.setName(entitySetName);
+                entitySet.setType(new FullQualifiedName(NAMESPACE, entitySetName));
 
                 List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<>();
-                Map<String, Type> navFields = this.entityMetadata.getEntitySetNavigationField(entitySetName);
+                Map<String, Type> navFields = entityTypeMetadata.getNavigationFields();
                 for (Map.Entry<String, Type> entry : navFields.entrySet()) {
                     Optional<String> entitySetOptional = this.entityMetadata.getEntitySetForEntityClass(entry.getValue().getTypeName());
                     entitySetOptional.ifPresent(esName -> {
@@ -124,8 +129,8 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
         CsdlSchema schema = new CsdlSchema();
         schema.setNamespace(NAMESPACE);
         List<CsdlEntityType> entityTypes = new ArrayList<>();
-        for (EntityMetadataModel metadataModel : this.entityMetadata.getEntityMetadata()) {
-            entityTypes.add(getEntityType(new FullQualifiedName(NAMESPACE, metadataModel.getEntityType())));
+        for (Map.Entry<String, EntityTypeMetadata> entry : this.entityMetadata.getEntityTypes().entrySet()) {
+            entityTypes.add(getEntityType(new FullQualifiedName(NAMESPACE, entry.getKey())));
         }
         schema.setEntityTypes(entityTypes);
         schema.setEntityContainer(getEntityContainer());
@@ -137,8 +142,8 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     @Override
     public CsdlEntityContainer getEntityContainer() throws ODataException {
         List<CsdlEntitySet> entitySets = new ArrayList<>();
-        for (EntityMetadataModel metadataModel : this.entityMetadata.getEntityMetadata()) {
-            entitySets.add(this.getEntitySet(CONTAINER, metadataModel.getEntitySetName()));
+        for (String entityset : this.entityMetadata.getEntitySets().keySet()) {
+            entitySets.add(this.getEntitySet(CONTAINER, entityset));
         }
         CsdlEntityContainer entityContainer = new CsdlEntityContainer();
         entityContainer.setName(CONTAINER_NAME);
