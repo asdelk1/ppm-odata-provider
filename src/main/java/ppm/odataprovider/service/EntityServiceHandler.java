@@ -29,7 +29,7 @@ public class EntityServiceHandler {
 
     public EntityServiceHandler() {
         try {
-            this.entityMetadata = new EntityMetadataHelper();
+            this.entityMetadata = EntityMetadataHelper.getInstance();
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
