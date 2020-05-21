@@ -46,7 +46,7 @@ public class PpmPrimitiveProcessor implements PrimitiveProcessor {
 
         // 2. retrieve data from backend
         // 2.1. retrieve the entity data, for which the property has to be read
-        Entity entity = new EntityServiceHandler().readEntityData(edmEntitySet, keyPredicates);
+        Entity entity = new EntityServiceHandler().readEntityData(edmEntitySet, keyPredicates, uriInfo.getExpandOption());
         if (entity == null) { // Bad request
             throw new ODataApplicationException("Entity not found",
                     HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);

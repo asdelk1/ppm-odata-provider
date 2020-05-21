@@ -36,7 +36,7 @@ public abstract class PpmODataGenericService {
                 throw new ODataApplicationException("Entity already exists", HttpStatusCode.CONFLICT.getStatusCode(), Locale.ENGLISH);
             }
             ApplicationEntity resultEntity = EntityRepository.save(createdObject);
-            createdEntity = EntityDataHelper.toEntity(createdObject.getClass(), resultEntity, edmEntitySet.getName());
+            createdEntity = EntityDataHelper.toEntity(createdObject.getClass(), resultEntity, edmEntitySet, null);
         } catch (Exception e) {
             throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }

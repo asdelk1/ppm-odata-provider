@@ -11,6 +11,7 @@ import org.apache.olingo.commons.api.http.HttpMethod;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
 import org.apache.olingo.server.api.uri.UriParameter;
+import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
 import ppm.odataprovider.data.ApplicationEntity;
 import ppm.odataprovider.data.EntityDataHelper;
 import ppm.odataprovider.data.PpmODataGenericService;
@@ -42,7 +43,7 @@ public class EntityServiceHandler {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
             Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             List<ApplicationEntity> resultSet = service.getAll(entityClazz);
-            this.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet.getName());
+            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet);
 
 // if there is no data need to raise an error, not sure this is the correct way might need to change it later.
 //            if (entityCollection.getEntities().isEmpty()) {
@@ -64,7 +65,7 @@ public class EntityServiceHandler {
             if (resultSet.isPresent()) {
                 ApplicationEntity sourceResult = resultSet.get();
                 List<ApplicationEntity> list = (List<ApplicationEntity>) getNavEntity(navProperty, entityClazz, sourceResult);
-                this.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet.getName());
+                EntityDataHelper.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet);
             }
             return entityCollection;
         } catch (Exception e) {
@@ -73,7 +74,7 @@ public class EntityServiceHandler {
     }
 
 
-    public Entity readEntityData(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) throws ODataApplicationException {
+    public Entity readEntityData(EdmEntitySet edmEntitySet, List<UriParameter> keyParams, ExpandOption expandOption) throws ODataApplicationException {
         Entity entity;
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
@@ -81,7 +82,7 @@ public class EntityServiceHandler {
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
             Optional<ApplicationEntity> resultSet = service.getEntity(entityClazz, params);
             if (resultSet.isPresent()) {
-                entity = EntityDataHelper.toEntity(entityClazz, resultSet.get(), edmEntitySet.getName());
+                entity = EntityDataHelper.toEntity(entityClazz, resultSet.get(), edmEntitySet, expandOption);
             } else {
                 throw new ODataApplicationException("", HttpStatusCode.NO_CONTENT.getStatusCode(), Locale.ENGLISH);
             }
@@ -103,7 +104,7 @@ public class EntityServiceHandler {
             if (resultSet.isPresent()) {
                 ApplicationEntity sourceResult = resultSet.get();
                 ApplicationEntity navResult = (ApplicationEntity) this.getNavEntity(navProperty, sourceEntityClazz, sourceResult);
-                entity = EntityDataHelper.toEntity(targetEntityClazz, navResult, targetEntitySet.getName());
+                entity = EntityDataHelper.toEntity(targetEntityClazz, navResult, targetEntitySet, null);
 
             } else {
                 throw new ODataApplicationException("", HttpStatusCode.NO_CONTENT.getStatusCode(), Locale.ENGLISH);
@@ -153,7 +154,7 @@ public class EntityServiceHandler {
                     return isFound;
                 }).findFirst();
 
-                entity = possibleEntity.isPresent() ? EntityDataHelper.toEntity(targetEntityClazz, possibleEntity.get(), targetEntitySet.getName()) : null;
+                entity = possibleEntity.isPresent() ? EntityDataHelper.toEntity(targetEntityClazz, possibleEntity.get(), targetEntitySet, null) : null;
             }
             return entity;
         } catch (Exception e) {
@@ -179,7 +180,7 @@ public class EntityServiceHandler {
                 return;
             }
             Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
-            Entity existingEntity = this.readEntityData(edmEntitySet, keyParams);
+            Entity existingEntity = this.readEntityData(edmEntitySet, keyParams, null);
             if (httpMethod == HttpMethod.PATCH) {
                 EdmEntityType entityType = edmEntitySet.getEntityType();
                 List<EdmKeyPropertyRef> keyRefs = entityType.getKeyPropertyRefs();
@@ -202,18 +203,11 @@ public class EntityServiceHandler {
     public void deleteEntity(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) throws ODataApplicationException {
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            Entity entityToDelete = this.readEntityData(edmEntitySet, keyParams);
+            Entity entityToDelete = this.readEntityData(edmEntitySet, keyParams, null);
             Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             service.deleteEntity(EntityDataHelper.fromEntity(entityClazz, entityToDelete));
         } catch (Exception ex) {
             throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
-        }
-    }
-
-    private void addEntitiesToCollection(EntityCollection collection, List<ApplicationEntity> entities, Class entityClazz, String entitySetName) {
-        List<Entity> entityList = collection.getEntities();
-        for (ApplicationEntity entity : entities) {
-            entityList.add(EntityDataHelper.toEntity(entityClazz, entity, entitySetName));
         }
     }
 
