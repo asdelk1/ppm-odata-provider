@@ -17,6 +17,7 @@ import org.apache.olingo.server.api.serializer.EntitySerializerOptions;
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.*;
+import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
 import ppm.odataprovider.data.EntityDataHelper;
 
 import java.io.InputStream;
@@ -36,7 +37,7 @@ public class PpmEntityProcessor implements EntityProcessor {
         Entity responseEntity = null;
         EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
 
-        // 1. retrieve the Entity Type
+        // Retrieve the Entity Type
         List<UriResource> uriResources = uriInfo.getUriResourceParts();
         UriResource firstUriResource = uriResources.get(0);
         if (!(firstUriResource instanceof UriResourceEntitySet)) {
@@ -47,9 +48,10 @@ public class PpmEntityProcessor implements EntityProcessor {
         UriResourceEntitySet resourceEntitySet = (UriResourceEntitySet) firstUriResource;
         EdmEntitySet sourceEntitySet = resourceEntitySet.getEntitySet();
         List<UriParameter> keyPredicates = resourceEntitySet.getKeyPredicates();
+        ExpandOption expandOption = uriInfo.getExpandOption();
         if (segmentCount == 1) {
             responseEntitySet = sourceEntitySet;
-            responseEntity = entityServiceHandler.readEntityData(sourceEntitySet, keyPredicates);
+            responseEntity = entityServiceHandler.readEntityData(sourceEntitySet, keyPredicates, expandOption);
         } else if (segmentCount == 2) {
             UriResource secondUriResource = uriResources.get(1);
             if (secondUriResource instanceof UriResourceNavigation) {
@@ -71,25 +73,20 @@ public class PpmEntityProcessor implements EntityProcessor {
             throw new ODataApplicationException("Not Supported URL", HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ROOT);
         }
 
-
-//        EdmEntitySet edmEntitySet =
-
-
-        // 2. retrieve the data from backend
-
-//        Entity entity = new EntityServiceHandler().readEntityData(edmEntitySet, keyPredicates);
-
-        // 3. serialize
+        // Serialize
         EdmEntityType entityType = responseEntitySet.getEntityType();
         ContextURL contextUrl = ContextURL.with().entitySet(responseEntitySet).build();
         // expand and select currently not supported
-        EntitySerializerOptions options = EntitySerializerOptions.with().contextURL(contextUrl).build();
+        EntitySerializerOptions options = EntitySerializerOptions.with()
+                .contextURL(contextUrl)
+                .expand(expandOption)
+                .build();
 
         ODataSerializer serializer = odata.createSerializer(responseFormat);
         SerializerResult serializerResult = serializer.entity(serviceMetadata, entityType, responseEntity, options);
         InputStream entityStream = serializerResult.getContent();
 
-        //4. configure the response object
+        // Configure the response object
         response.setContent(entityStream);
         response.setStatusCode(HttpStatusCode.OK.getStatusCode());
         response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());

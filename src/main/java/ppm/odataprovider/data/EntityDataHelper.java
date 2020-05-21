@@ -1,17 +1,18 @@
 package ppm.odataprovider.data;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.olingo.commons.api.data.Entity;
-import org.apache.olingo.commons.api.data.Link;
-import org.apache.olingo.commons.api.data.Property;
-import org.apache.olingo.commons.api.data.ValueType;
+import org.apache.olingo.commons.api.Constants;
+import org.apache.olingo.commons.api.data.*;
+import org.apache.olingo.commons.api.edm.EdmEntitySet;
+import org.apache.olingo.commons.api.edm.EdmEntityType;
+import org.apache.olingo.commons.api.edm.EdmNavigationProperty;
 import org.apache.olingo.commons.api.ex.ODataRuntimeException;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
-import org.apache.olingo.server.api.uri.UriInfoResource;
-import org.apache.olingo.server.api.uri.UriParameter;
-import org.apache.olingo.server.api.uri.UriResource;
-import org.apache.olingo.server.api.uri.UriResourceEntitySet;
+import org.apache.olingo.server.api.uri.*;
+import org.apache.olingo.server.api.uri.queryoption.ExpandItem;
+import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
+import ppm.odataprovider.service.EntityServiceUtil;
 import ppm.odataprovider.service.metadata.EntityMetadataHelper;
 
 import javax.persistence.Id;
@@ -28,32 +29,73 @@ import java.util.Locale;
 
 public class EntityDataHelper {
 
-    public static Entity toEntity(Class dataClass, Object object, String entitySetName) {
+    public static Entity toEntity(Class dataClass, Object object, EdmEntitySet entitySet, ExpandOption expandOption) {
         Entity entity = new Entity();
         URI id = null;
-        for (Field field : dataClass.getDeclaredFields()) {
-            if (EntityMetadataHelper.isNavigationProperty(field)) {
-                continue;
-            }
+        try {
+            for (Field field : dataClass.getDeclaredFields()) {
+                if (EntityMetadataHelper.isNavigationProperty(field) && expandOption != null) {
+                    EdmEntityType entityType = entitySet.getEntityType();
+                    EdmNavigationProperty navProperty = entityType.getNavigationProperty(field.getName());
+                    EdmEntitySet targetEs = EntityServiceUtil.getNavigationTargetEntitySet(entitySet, navProperty);
 
-            String getterName = "get" + StringUtils.capitalize(field.getName());
-            try {
-                Annotation keyAnnotation = field.getAnnotation(Id.class);
+                    List<ExpandItem> expandItems = expandOption.getExpandItems();
+                    boolean isExpandItemFound = expandItems.stream().anyMatch(
+                            (expandItem -> {
+                                if (expandItem.isStar()) {
+                                    return true;
+                                } else {
+                                    // Not sure about this, but for the moment leave it like this.
+                                    UriResource uriResource = expandItem.getResourcePath().getUriResourceParts().get(0);
+                                    if (uriResource instanceof UriResourceNavigation) {
+                                        EdmNavigationProperty expandNavProperty = ((UriResourceNavigation) uriResource).getProperty();
+                                        return expandNavProperty.equals(navProperty);
+                                    } else {
+                                        return false;
+                                    }
+                                }
+                            })
+                    );
 
-                Method getter = dataClass.getMethod(getterName);
-                Object value = getter.invoke(object);
-                Property property = new Property(null, field.getName(), ValueType.PRIMITIVE, value);
-                entity.addProperty(property);
-                if (keyAnnotation != null) {
-                    id = createId(entitySetName, value);
+                    if (isExpandItemFound) {
+                        String navPropName = navProperty.getName();
+                        Link link = new Link();
+                        link.setTitle(navPropName);
+                        link.setType(Constants.ENTITY_NAVIGATION_LINK_TYPE);
+                        link.setRel(Constants.NS_ASSOCIATION_LINK_REL + navPropName);
+                        Object value = invokeGetter(dataClass, object, field);
+                        if (navProperty.isCollection()) {
+                           List<ApplicationEntity> list = (List<ApplicationEntity>) value;
+                            EntityCollection expandEntityCollection = new EntityCollection();
+                            addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs);
+                            link.setInlineEntitySet(expandEntityCollection);
+                            link.setHref(expandEntityCollection.getId().toASCIIString());
+                        }else {
+                            // handle single entity
+                            Entity expandedEntity = toEntity(field.getType(), value, targetEs, null);
+                            link.setInlineEntity(expandedEntity);
+                            link.setHref(expandedEntity.getId().toASCIIString());
+
+                        }
+                    }
+                } else {
+
+                    Annotation keyAnnotation = field.getAnnotation(Id.class);
+                    Object value = invokeGetter(dataClass, object, field);
+                    Property property = new Property(null, field.getName(), ValueType.PRIMITIVE, value);
+                    entity.addProperty(property);
+                    if (keyAnnotation != null) {
+                        id = createId(entitySet.getName(), value);
+                    }
+
                 }
-            } catch (NoSuchMethodException e) {
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
             }
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
         }
         entity.setId(id);
 
@@ -70,26 +112,39 @@ public class EntityDataHelper {
             if (EntityMetadataHelper.isNavigationProperty(field)) {
                 Link navigationLink = entity.getNavigationLink(field.getName());
                 if (!EntityMetadataHelper.isCollectionType(field.getType()) && navigationLink != null) {
-                    invokeGetter(entityClass, obj, field, field.getName(), fromEntity(field.getType(), navigationLink.getInlineEntity()));
+                    invokeSetter(entityClass, obj, field, fromEntity(field.getType(), navigationLink.getInlineEntity()));
                 }
             } else {
                 Property property = entity.getProperty(field.getName());
                 if (property == null) {
                     continue;
                 }
-                invokeGetter(entityClass, obj, field, field.getName(), property.getValue());
+                invokeSetter(entityClass, obj, field, property.getValue());
             }
         }
         return obj;
     }
 
-    private static <T> void invokeGetter(Class entityClass, T obj, Field field, String property, Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        String setterName = "set" + StringUtils.capitalize(property);
+    public static void addEntitiesToCollection(EntityCollection collection, List<ApplicationEntity> entities, Class entityClazz, EdmEntitySet entitySet) {
+        List<Entity> entityList = collection.getEntities();
+        for (ApplicationEntity entity : entities) {
+            entityList.add(EntityDataHelper.toEntity(entityClazz, entity, entitySet, null));
+        }
+    }
+
+    private static <T> void invokeSetter(Class entityClass, T obj, Field field, Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        String setterName = "set" + StringUtils.capitalize(field.getName());
         Class fieldType = field.getType();
         Method setter = entityClass.getMethod(setterName, fieldType);
         if (setter != null) {
             setter.invoke(obj, value);
         }
+    }
+
+    private static Object invokeGetter(Class entityClazz, Object object, Field field) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        String getterName = "get" + StringUtils.capitalize(field.getName());
+        Method getter = entityClazz.getMethod(getterName);
+        return getter.invoke(object);
     }
 
     public static UriResourceEntitySet getUriResourceEntitySet(UriInfoResource uriInfo) throws ODataApplicationException {
