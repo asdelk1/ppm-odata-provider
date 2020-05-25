@@ -14,6 +14,7 @@ import org.apache.olingo.server.api.serializer.EntityCollectionSerializerOptions
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.*;
+import org.apache.olingo.server.api.uri.queryoption.FilterOption;
 
 import java.io.InputStream;
 import java.util.List;
@@ -46,8 +47,9 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
         EntityServiceHandler serviceHandler = new EntityServiceHandler();
 
         if (segmentCount == 1) {
+            FilterOption filterOption = uriInfo.getFilterOption();
             responseEntitySet = startEntitySet;
-            responseEntityCollection = serviceHandler.readEntitySetData(startEntitySet);
+            responseEntityCollection = serviceHandler.readEntitySetData(startEntitySet, filterOption);
         } else if (segmentCount == 2) {
             UriResource navResource = resourceParts.get(1);
             if (navResource instanceof UriResourceNavigation) {

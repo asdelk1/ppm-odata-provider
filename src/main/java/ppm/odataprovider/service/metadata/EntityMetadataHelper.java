@@ -77,15 +77,14 @@ public class EntityMetadataHelper {
 
     public String getEntitySetTypeName(String entitySetName) {
         String typeName = null;
-        if (this.edm.getEntityset().containsKey(entitySetName) && !this.edm.getEntities().containsKey(this.edm.getEntityset().get(entitySetName))) {
-            EntityTypeMetadata metadata = this.edm.getEntities().get(this.edm.getEntityset().get(entitySetName));
+        if (this.edm.getEntityset().containsKey(entitySetName) && this.edm.getEntities().containsKey(this.edm.getEntityset().get(entitySetName))) {
             typeName = this.edm.getEntityset().get(entitySetName);
         }
         return typeName;
     }
 
     public Optional<EntityTypeMetadata> getEntitySetType(String entitySetName) {
-        if (this.edm.getEntityset().containsKey(entitySetName) && !this.edm.getEntities().containsKey(this.edm.getEntityset().get(entitySetName))) {
+        if (this.edm.getEntityset().containsKey(entitySetName) && this.edm.getEntities().containsKey(this.edm.getEntityset().get(entitySetName))) {
             EntityTypeMetadata metadata = this.edm.getEntities().get(this.edm.getEntityset().get(entitySetName));
             return Optional.of(metadata);
         }

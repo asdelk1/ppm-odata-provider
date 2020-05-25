@@ -55,11 +55,11 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
 
                         keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
 
-                    } else if (this.entityMetadata.isNavigationProperty(field)) {
-                        boolean isCollection = this.entityMetadata.isCollectionType(field.getType());
+                    } else if (EntityMetadataHelper.isNavigationProperty(field)) {
+                        boolean isCollection = EntityMetadataHelper.isCollectionType(field.getType());
 
                         Optional<String> navEntitySetOptional = isCollection ?
-                                this.entityMetadata.getEntitySetForEntityClass(this.entityMetadata.getParameterizedType(field).getTypeName())
+                                this.entityMetadata.getEntitySetForEntityClass(EntityMetadataHelper.getParameterizedType(field).getTypeName())
                                 : this.entityMetadata.getEntitySetForEntityClass(field.getType().getName());
 
                         if (navEntitySetOptional.isPresent()) {
@@ -88,14 +88,15 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     }
 
     @Override
-    public CsdlEntitySet getEntitySet(FullQualifiedName entityContainer, String entitySetName) throws ODataException {
+    public CsdlEntitySet getEntitySet(FullQualifiedName entityContainer, String entitySetName) {
         if (entityContainer.equals(CONTAINER)) {
 
-            if (this.entityMetadata.isEntitySetExists(entitySetName)) {
-                EntityTypeMetadata entityTypeMetadata = this.entityMetadata.getEntitySetType(entitySetName).get();
+            Optional<EntityTypeMetadata> optionalMetadata = this.entityMetadata.getEntitySetType(entitySetName);
+            if (this.entityMetadata.isEntitySetExists(entitySetName) && optionalMetadata.isPresent()) {
+                EntityTypeMetadata entityTypeMetadata = optionalMetadata.get();
                 CsdlEntitySet entitySet = new CsdlEntitySet();
                 entitySet.setName(entitySetName);
-                entitySet.setType(new FullQualifiedName(NAMESPACE, entitySetName));
+                entitySet.setType(new FullQualifiedName(NAMESPACE, this.entityMetadata.getEntitySetTypeName(entitySetName)));
 
                 List<CsdlNavigationPropertyBinding> navPropBindingList = new ArrayList<>();
                 Map<String, Type> navFields = entityTypeMetadata.getNavigationFields();
@@ -118,7 +119,7 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     }
 
     @Override
-    public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) throws ODataException {
+    public CsdlEntityContainerInfo getEntityContainerInfo(FullQualifiedName entityContainerName) {
         CsdlEntityContainerInfo entityContainerInfo = new CsdlEntityContainerInfo();
         entityContainerInfo.setContainerName(CONTAINER);
         return entityContainerInfo;
