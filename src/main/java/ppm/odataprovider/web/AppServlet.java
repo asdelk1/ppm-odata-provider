@@ -42,6 +42,12 @@ public class AppServlet extends HttpServlet {
 
             // let the handler do the work
             handler.process(req, resp);
+
+            resp.setHeader("Access-Control-Allow-Origin", "*");
+            resp.setHeader("Access-Control-Expose-Headers", "*");
+            resp.setHeader("Access-Control-Allow-Methods", "*");
+            resp.setHeader("Access-Control-Allow-Headers", "*");
+
         } catch (RuntimeException e) {
             LOG.error("Server Error occurred in ExampleServlet", e);
             throw new ServletException(e);
