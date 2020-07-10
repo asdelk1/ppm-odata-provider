@@ -38,7 +38,7 @@ public class EntityServiceHandler {
         }
     }
 
-    public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet, FilterOption filterOption) throws ODataApplicationException {
+    public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet, FilterOption filterOption, ExpandOption expandOption) throws ODataApplicationException {
         EntityCollection entityCollection = new EntityCollection();
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
@@ -51,7 +51,7 @@ public class EntityServiceHandler {
             } else {
                 resultSet = service.getAll(entityClazz);
             }
-            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet);
+            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet,expandOption);
 
 // if there is no data need to raise an error, not sure this is the correct way might need to change it later.
 //            if (entityCollection.getEntities().isEmpty()) {
@@ -73,7 +73,7 @@ public class EntityServiceHandler {
             if (resultSet.isPresent()) {
                 ApplicationEntity sourceResult = resultSet.get();
                 List<ApplicationEntity> list = (List<ApplicationEntity>) getNavEntity(navProperty, entityClazz, sourceResult);
-                EntityDataHelper.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet);
+                EntityDataHelper.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet, null);
             }
             return entityCollection;
         } catch (Exception e) {

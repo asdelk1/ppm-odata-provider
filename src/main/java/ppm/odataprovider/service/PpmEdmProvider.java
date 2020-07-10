@@ -49,11 +49,13 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                                 .setName(field.getName())
                                 .setType(this.entityMetadata.getODataPrimitiveDataType(field.getType().getName())));
 
-                        Optional<String> keyProperty = Arrays.stream(model.getKeys())
-                                .filter(k -> k.equals(field.getName()))
-                                .findFirst();
+//                        Optional<String> keyProperty = Arrays.stream(model.getKeys())
+//                                .filter(k -> k.equals(field.getName()))
+//                                .findFirst();
 
-                        keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
+//                        keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
+
+                        keyref.add(new CsdlPropertyRef().setName("entityId"));
 
                     } else if (EntityMetadataHelper.isNavigationProperty(field)) {
                         boolean isCollection = EntityMetadataHelper.isCollectionType(field.getType());

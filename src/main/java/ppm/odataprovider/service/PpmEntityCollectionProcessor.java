@@ -14,6 +14,7 @@ import org.apache.olingo.server.api.serializer.EntityCollectionSerializerOptions
 import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.*;
+import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
 import org.apache.olingo.server.api.uri.queryoption.FilterOption;
 
 import java.io.InputStream;
@@ -45,11 +46,11 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
         UriResourceEntitySet uriResourceEntitySet = (UriResourceEntitySet) uriResource;
         EdmEntitySet startEntitySet = uriResourceEntitySet.getEntitySet();
         EntityServiceHandler serviceHandler = new EntityServiceHandler();
-
+        ExpandOption expandOption = uriInfo.getExpandOption();
         if (segmentCount == 1) {
             FilterOption filterOption = uriInfo.getFilterOption();
             responseEntitySet = startEntitySet;
-            responseEntityCollection = serviceHandler.readEntitySetData(startEntitySet, filterOption);
+            responseEntityCollection = serviceHandler.readEntitySetData(startEntitySet, filterOption, expandOption);
         } else if (segmentCount == 2) {
             UriResource navResource = resourceParts.get(1);
             if (navResource instanceof UriResourceNavigation) {
@@ -73,17 +74,26 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
         EdmEntityType edmEntityType = responseEntitySet.getEntityType();
         ContextURL contextUrl = ContextURL.with().entitySet(responseEntitySet).build();
         final String id = oDataRequest.getRawBaseUri() + "/" + responseEntitySet.getName();
-        EntityCollectionSerializerOptions opts = EntityCollectionSerializerOptions.with().id(id).contextURL(contextUrl).build();
+
+        EntityCollectionSerializerOptions opts = EntityCollectionSerializerOptions
+                .with()
+                .id(id)
+                .contextURL(contextUrl)
+                .expand(expandOption)
+                .build();
+
         SerializerResult serializerResult = serializer.entityCollection(serviceMetadata, edmEntityType, responseEntityCollection, opts);
         InputStream serializedContent = serializerResult.getContent();
 
-        if (!responseEntityCollection.getEntities().isEmpty()) {
-            oDataResponse.setContent(serializedContent);
-            oDataResponse.setStatusCode(HttpStatusCode.OK.getStatusCode());
-
-        } else {
-            oDataResponse.setStatusCode(HttpStatusCode.NOT_FOUND.getStatusCode());
-        }
+//        if (!responseEntityCollection.getEntities().isEmpty()) {
+//            oDataResponse.setContent(serializedContent);
+//            oDataResponse.setStatusCode(HttpStatusCode.OK.getStatusCode());
+//
+//        } else {
+//            oDataResponse.setStatusCode(HttpStatusCode.NOT_FOUND.getStatusCode());
+//        }
+        oDataResponse.setContent(serializedContent);
+        oDataResponse.setStatusCode(HttpStatusCode.OK.getStatusCode());
         oDataResponse.setHeader(HttpHeader.CONTENT_TYPE, contentType.toContentTypeString());
     }
 }

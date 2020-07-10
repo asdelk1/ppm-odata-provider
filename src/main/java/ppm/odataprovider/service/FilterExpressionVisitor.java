@@ -10,6 +10,7 @@ import org.apache.olingo.server.api.uri.UriResource;
 import org.apache.olingo.server.api.uri.UriResourcePrimitiveProperty;
 import org.apache.olingo.server.api.uri.queryoption.expression.*;
 import org.hibernate.criterion.Criterion;
+import org.hibernate.criterion.MatchMode;
 import org.hibernate.criterion.Restrictions;
 
 import java.util.List;
@@ -170,12 +171,30 @@ public class FilterExpressionVisitor implements ExpressionVisitor<Object> {
                 HttpStatusCode.BAD_REQUEST.getStatusCode(), Locale.ENGLISH);
     }
 
-    /* THESE METHODS ARE NOT IMPLEMENTED YET!!! */
-
     @Override
     public Object visitMethodCall(MethodKind methodKind, List<Object> list) throws ExpressionVisitException, ODataApplicationException {
-        return null;
+        if (methodKind == MethodKind.STARTSWITH) {
+            if (list.size() != 2) {
+                throw new ODataApplicationException("Invalid Parameters", HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+            }
+
+            String propName;
+            Object value;
+
+            if (list.get(0) instanceof EdmProperty) {
+                propName = ((EdmProperty) list.get(0)).getName();
+                value = list.get(1);
+            } else {
+                value = list.get(0);
+                propName = ((EdmProperty) list.get(1)).getName();
+            }
+            return Restrictions.like(propName, value.toString(), MatchMode.START);
+        }else{
+            throw new ODataApplicationException("Method is not implemented", HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+        }
     }
+
+    /* THESE METHODS ARE NOT IMPLEMENTED YET!!! */
 
     @Override
     public Object visitLambdaExpression(String s, String s1, Expression expression) throws ExpressionVisitException, ODataApplicationException {
