@@ -1,5 +1,7 @@
 package ppm.odataprovider.app.person;
 
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import ppm.odataprovider.app.task.Task;
 import ppm.odataprovider.data.ApplicationEntity;
 
@@ -25,6 +27,7 @@ public class Person implements ApplicationEntity {
     private String department;
 
     @OneToMany(fetch = FetchType.EAGER, mappedBy = "assignee")
+    @Fetch(FetchMode.SELECT)
     private List<Task> tasks;
 
     @Override
