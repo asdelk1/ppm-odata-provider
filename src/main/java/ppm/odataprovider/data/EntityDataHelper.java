@@ -67,7 +67,7 @@ public class EntityDataHelper {
                         if (navProperty.isCollection()) {
                            List<ApplicationEntity> list = (List<ApplicationEntity>) value;
                             EntityCollection expandEntityCollection = new EntityCollection();
-                            addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs);
+                            addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs, expandOption);
                             link.setInlineEntitySet(expandEntityCollection);
                             link.setHref(expandEntityCollection.getId().toASCIIString());
                         }else {
@@ -77,6 +77,7 @@ public class EntityDataHelper {
                             link.setHref(expandedEntity.getId().toASCIIString());
 
                         }
+                        entity.getNavigationLinks().add(link);
                     }
                 } else {
 
@@ -125,10 +126,10 @@ public class EntityDataHelper {
         return obj;
     }
 
-    public static void addEntitiesToCollection(EntityCollection collection, List<ApplicationEntity> entities, Class entityClazz, EdmEntitySet entitySet) {
+    public static void addEntitiesToCollection(EntityCollection collection, List<ApplicationEntity> entities, Class entityClazz, EdmEntitySet entitySet, ExpandOption expandOption) {
         List<Entity> entityList = collection.getEntities();
         for (ApplicationEntity entity : entities) {
-            entityList.add(EntityDataHelper.toEntity(entityClazz, entity, entitySet, null));
+            entityList.add(EntityDataHelper.toEntity(entityClazz, entity, entitySet, expandOption));
         }
     }
 

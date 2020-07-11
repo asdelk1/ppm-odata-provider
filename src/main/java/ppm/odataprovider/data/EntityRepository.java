@@ -3,6 +3,7 @@ package ppm.odataprovider.data;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.criterion.Criterion;
 import org.hibernate.criterion.Restrictions;
 
 import java.util.List;
@@ -19,6 +20,19 @@ public class EntityRepository<T> {
         session.getTransaction().commit();
 //        session.close();
         return entityList;
+    }
+
+    public static <T> Optional<List<T>> find(Class entityClazz, Criterion filter){
+        Optional<List<T>> result = Optional.empty();
+        Session session = HibernateUtil.getSessionFactory().openSession();
+        Criteria criteria = session.createCriteria(entityClazz);
+        criteria.add(filter);
+        List<T> resultList = criteria.list();
+        if (!resultList.isEmpty()) {
+            result = Optional.of(resultList);
+        }
+//        session.close();
+        return result;
     }
 
     public static <T> Optional<List<T>> find(Class entityClazz, Map<String, Object> params) {

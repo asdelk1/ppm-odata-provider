@@ -12,6 +12,8 @@ import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
 import org.apache.olingo.server.api.uri.UriParameter;
 import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
+import org.apache.olingo.server.api.uri.queryoption.FilterOption;
+import org.hibernate.criterion.Criterion;
 import ppm.odataprovider.data.ApplicationEntity;
 import ppm.odataprovider.data.EntityDataHelper;
 import ppm.odataprovider.data.PpmODataGenericService;
@@ -36,14 +38,20 @@ public class EntityServiceHandler {
         }
     }
 
-    public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet) throws ODataApplicationException {
+    public EntityCollection readEntitySetData(EdmEntitySet edmEntitySet, FilterOption filterOption, ExpandOption expandOption) throws ODataApplicationException {
         EntityCollection entityCollection = new EntityCollection();
-        List<Entity> entityList = entityCollection.getEntities();
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
             Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
-            List<ApplicationEntity> resultSet = service.getAll(entityClazz);
-            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet);
+            List<ApplicationEntity> resultSet;
+            if (filterOption != null) {
+                Criterion filter = (Criterion) filterOption.getExpression().accept(new FilterExpressionVisitor());
+                Optional<List<ApplicationEntity>> result = service.find(entityClazz, filter);
+                resultSet = result.isPresent() ? result.get() : new ArrayList<>();
+            } else {
+                resultSet = service.getAll(entityClazz);
+            }
+            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet,expandOption);
 
 // if there is no data need to raise an error, not sure this is the correct way might need to change it later.
 //            if (entityCollection.getEntities().isEmpty()) {
@@ -65,7 +73,7 @@ public class EntityServiceHandler {
             if (resultSet.isPresent()) {
                 ApplicationEntity sourceResult = resultSet.get();
                 List<ApplicationEntity> list = (List<ApplicationEntity>) getNavEntity(navProperty, entityClazz, sourceResult);
-                EntityDataHelper.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet);
+                EntityDataHelper.addEntitiesToCollection(entityCollection, list, this.entityMetadata.getEntityClass(targetEntitySet.getEntityType()), targetEntitySet, null);
             }
             return entityCollection;
         } catch (Exception e) {
