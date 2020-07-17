@@ -3,6 +3,7 @@ package ppm.odataprovider.service;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.EntityCollection;
+import org.apache.olingo.commons.api.data.Link;
 import org.apache.olingo.commons.api.data.Property;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
@@ -51,7 +52,7 @@ public class EntityServiceHandler {
             } else {
                 resultSet = service.getAll(entityClazz);
             }
-            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet,expandOption);
+            EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet, expandOption);
 
 // if there is no data need to raise an error, not sure this is the correct way might need to change it later.
 //            if (entityCollection.getEntities().isEmpty()) {
@@ -199,6 +200,10 @@ public class EntityServiceHandler {
                             exsProp.setValue(property.getValueType(), property.getValue());
                         }
                     }
+                }
+
+                for (Link navLink : entity.getNavigationLinks()) {
+                    existingEntity.getNavigationLinks().add(navLink);
                 }
                 ApplicationEntity modifiedEntity = EntityDataHelper.fromEntity(entityClazz, existingEntity);
                 service.updateEntity(modifiedEntity);
