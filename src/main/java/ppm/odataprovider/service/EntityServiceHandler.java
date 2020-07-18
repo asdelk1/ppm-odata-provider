@@ -216,9 +216,14 @@ public class EntityServiceHandler {
     public void deleteEntity(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) throws ODataApplicationException {
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            Entity entityToDelete = this.readEntityData(edmEntitySet, keyParams, null);
             Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
-            service.deleteEntity(EntityDataHelper.fromEntity(entityClazz, entityToDelete));
+            Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
+            Optional<ApplicationEntity> result = service.getEntity(entityClazz, params);
+            if (result.isPresent()) {
+                service.deleteEntity(result.get());
+            }else{
+                throw new ODataApplicationException(String.format("Entity with id(%s) not found", params.toString()), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+            }
         } catch (Exception ex) {
             throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
