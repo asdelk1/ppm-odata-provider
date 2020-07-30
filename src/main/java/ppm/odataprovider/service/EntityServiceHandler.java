@@ -43,7 +43,7 @@ public class EntityServiceHandler {
         EntityCollection entityCollection = new EntityCollection();
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             List<ApplicationEntity> resultSet;
             if (filterOption != null) {
                 Criterion filter = (Criterion) filterOption.getExpression().accept(new FilterExpressionVisitor());
@@ -68,7 +68,7 @@ public class EntityServiceHandler {
         EntityCollection entityCollection = new EntityCollection();
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(sourceEntitySet);
-            Class entityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
             Optional<ApplicationEntity> resultSet = service.getEntity(entityClazz, params);
             if (resultSet.isPresent()) {
@@ -82,12 +82,11 @@ public class EntityServiceHandler {
         }
     }
 
-
     public Entity readEntityData(EdmEntitySet edmEntitySet, List<UriParameter> keyParams, ExpandOption expandOption) throws ODataApplicationException {
         Entity entity;
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
             Optional<ApplicationEntity> resultSet = service.getEntity(entityClazz, params);
             if (resultSet.isPresent()) {
@@ -106,8 +105,8 @@ public class EntityServiceHandler {
         Entity entity;
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(sourceEntitySet);
-            Class sourceEntityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
-            Class targetEntityClazz = this.entityMetadata.getEntityClass(targetEntitySet.getEntityType());
+            Class<?> sourceEntityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
+            Class<?> targetEntityClazz = this.entityMetadata.getEntityClass(targetEntitySet.getEntityType());
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(sourceEntityClazz, keyParams);
             Optional<ApplicationEntity> resultSet = service.getEntity(sourceEntityClazz, params);
             if (resultSet.isPresent()) {
@@ -129,8 +128,8 @@ public class EntityServiceHandler {
         Entity entity = null;
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(sourceEntitySet);
-            Class entityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
-            Class targetEntityClazz = this.entityMetadata.getEntityClass(targetEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(sourceEntitySet.getEntityType());
+            Class<?> targetEntityClazz = this.entityMetadata.getEntityClass(targetEntitySet.getEntityType());
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
             Map<String, Object> navParamsMap = EntityDataHelper.getKeyParamValue(entityClazz, navParams);
             Optional<ApplicationEntity> resultSet = service.getEntity(entityClazz, params);
@@ -175,7 +174,9 @@ public class EntityServiceHandler {
         Entity createdEntity;
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            createdEntity = service.saveEntity(edmEntitySet, this.entityMetadata.getEntityClass(edmEntitySet.getEntityType()), entity);
+            ApplicationEntity newObject = EntityDataHelper.fromEntity(this.entityMetadata.getEntityClass(edmEntitySet.getEntityType()), entity);
+            ApplicationEntity createdObject = service.saveEntity(newObject);
+            createdEntity = EntityDataHelper.toEntity(newObject.getClass(), createdObject, edmEntitySet, null);
         } catch (Exception ex) {
             throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
@@ -188,7 +189,7 @@ public class EntityServiceHandler {
             if (entity == null) {
                 return;
             }
-            Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             Entity existingEntity = this.readEntityData(edmEntitySet, keyParams, null);
             if (httpMethod == HttpMethod.PATCH) {
                 EdmEntityType entityType = edmEntitySet.getEntityType();
@@ -216,7 +217,7 @@ public class EntityServiceHandler {
     public void deleteEntity(EdmEntitySet edmEntitySet, List<UriParameter> keyParams) throws ODataApplicationException {
         try {
             PpmODataGenericService service = this.entityMetadata.getServiceClass(edmEntitySet);
-            Class entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
+            Class<?> entityClazz = this.entityMetadata.getEntityClass(edmEntitySet.getEntityType());
             Map<String, Object> params = EntityDataHelper.getKeyParamValue(entityClazz, keyParams);
             Optional<ApplicationEntity> result = service.getEntity(entityClazz, params);
             if (result.isPresent()) {
@@ -229,7 +230,7 @@ public class EntityServiceHandler {
         }
     }
 
-    private Object getNavEntity(String navProperty, Class entityClazz, ApplicationEntity resultObject) throws NoSuchFieldException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    private Object getNavEntity(String navProperty, Class<?> entityClazz, ApplicationEntity resultObject) throws NoSuchFieldException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         Field navField = entityClazz.getDeclaredField(navProperty);
         String getterMethodName = "get" + StringUtils.capitalize(navField.getName());
         Method method = entityClazz.getMethod(getterMethodName);

@@ -14,15 +14,15 @@ import java.util.Optional;
 
 public abstract class PpmODataGenericService {
 
-    public List<ApplicationEntity> getAll(Class entityClazz) {
+    public List<ApplicationEntity> getAll(Class<?> entityClazz) {
         return EntityRepository.findAll(entityClazz);
     }
 
-    public Optional<List<ApplicationEntity>> find(Class entityClazz, Criterion filter){
+    public Optional<List<ApplicationEntity>> find(Class<?> entityClazz, Criterion filter){
         return EntityRepository.find(entityClazz, filter);
     }
 
-    public Optional<ApplicationEntity> getEntity(Class entityClazz, Map<String, Object> params) {
+    public Optional<ApplicationEntity> getEntity(Class<?> entityClazz, Map<String, Object> params) {
         Optional<List<ApplicationEntity>> resultSet = EntityRepository.find(entityClazz, params);
         if (resultSet.isPresent()) {
             List<ApplicationEntity> result = resultSet.get();
@@ -32,20 +32,16 @@ public abstract class PpmODataGenericService {
         }
     }
 
-    public Entity saveEntity(EdmEntitySet edmEntitySet, Class entityClazz, Entity entity) throws ODataApplicationException {
-        Entity createdEntity;
+    public ApplicationEntity saveEntity(ApplicationEntity newAppEntity) throws ODataApplicationException {
         try {
-            ApplicationEntity createdObject = EntityDataHelper.fromEntity(entityClazz, entity);
-            createdObject.init();
-            if (EntityRepository.get(createdObject.getClass(), createdObject.getEntityId()).isPresent()) {
+            newAppEntity.init();
+            if (EntityRepository.get(newAppEntity.getClass(), newAppEntity.getEntityId()).isPresent()) {
                 throw new ODataApplicationException("Entity already exists", HttpStatusCode.CONFLICT.getStatusCode(), Locale.ENGLISH);
             }
-            ApplicationEntity resultEntity = EntityRepository.save(createdObject);
-            createdEntity = EntityDataHelper.toEntity(createdObject.getClass(), resultEntity, edmEntitySet, null);
+            return EntityRepository.save(newAppEntity);
         } catch (Exception e) {
             throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
-        return createdEntity;
     }
 
     public void updateEntity(ApplicationEntity entity) {
