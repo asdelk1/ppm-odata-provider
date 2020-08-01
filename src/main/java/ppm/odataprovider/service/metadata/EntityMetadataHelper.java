@@ -118,7 +118,6 @@ public class EntityMetadataHelper {
         return edmPrimitiveTypeKind.getFullQualifiedName();
     }
 
-
     public boolean isPrimitiveType(Class type) {
         boolean isPrimitive = false;
         if (type.equals(Integer.TYPE) || type.equals(Long.TYPE) || type.equals(Double.TYPE) || type.equals(Date.class)
