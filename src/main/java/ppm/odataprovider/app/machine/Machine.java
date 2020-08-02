@@ -24,7 +24,7 @@ public class Machine implements ApplicationEntity {
     @OneToMany(fetch = FetchType.EAGER, mappedBy = "machine")
     private List<Task> currentAssignments;
 
-    @Column(name = "machine_id")
+    @Column(name = "next_service_date")
     private Date nextServiceDate;
 
     @Override
