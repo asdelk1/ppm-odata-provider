@@ -18,6 +18,7 @@ public class Machine implements ApplicationEntity {
 
     @Column(name = "machine_id")
     private String machineId;
+
     @Column(name = "max_Assignments")
     private int maxAssignments;
 

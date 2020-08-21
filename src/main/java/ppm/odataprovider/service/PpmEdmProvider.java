@@ -36,7 +36,6 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
             List<CsdlProperty> properties = new ArrayList<>();
             List<CsdlPropertyRef> keyref = new ArrayList<>();
             List<CsdlNavigationProperty> navPropList = new ArrayList<>();
-//            for (EntityTypeMetadata model : this.entityMetadata.getEntityMetadata()) {
             Optional<EntityTypeMetadata> entityTypeMetadataOptional = this.entityMetadata.getEntity(entityTypeName.getName());
             if (entityTypeMetadataOptional.isPresent()) {
                 EntityTypeMetadata model = entityTypeMetadataOptional.get();
@@ -48,12 +47,6 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                         properties.add(new CsdlProperty()
                                 .setName(field.getName())
                                 .setType(this.entityMetadata.getODataPrimitiveDataType(field.getType().getName())));
-
-//                        Optional<String> keyProperty = Arrays.stream(model.getKeys())
-//                                .filter(k -> k.equals(field.getName()))
-//                                .findFirst();
-
-//                        keyProperty.ifPresent(s -> keyref.add(new CsdlPropertyRef().setName(s)));
 
                         keyref.add(new CsdlPropertyRef().setName("entityId"));
 
@@ -82,7 +75,6 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                 entityType.setKey(keyref);
                 entityType.setNavigationProperties(navPropList);
             }
-//            }
             return entityType;
         } catch (Exception e) {
             throw new ODataException(e.getMessage());
