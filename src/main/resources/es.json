@@ -1,7 +1,9 @@
 {
 	"entityset": {
 		"Tasks": "Task",
-		"Persons": "Person"
+		"Persons": "Person",
+		"Machines": "Machine",
+		"Resources": "Resource"
 	},
 	"entities": {
 		"Task": {
@@ -14,6 +16,20 @@
 		"Person": {			
 			"entityClass": "ppm.odataprovider.app.person.Person",
 			"serviceClass": "ppm.odataprovider.app.person.PersonService",
+			"keys": [
+				"personId"
+			]
+		},
+		"Machine": {
+			"entityClass": "ppm.odataprovider.app.machine.Machine",
+			"serviceClass": "ppm.odataprovider.app.machine.MachineService",
+			"keys": [
+				"personId"
+			]
+		},
+		"Resource": {
+			"entityClass": "ppm.odataprovider.app.resource.Resource",
+			"serviceClass": "ppm.odataprovider.app.resource.ResourceService",
 			"keys": [
 				"personId"
 			]

@@ -1,6 +1,7 @@
 package ppm.odataprovider.app.task;
 
 
+import ppm.odataprovider.app.machine.Machine;
 import ppm.odataprovider.app.person.Person;
 import ppm.odataprovider.data.ApplicationEntity;
 
@@ -38,6 +39,10 @@ public class Task implements ApplicationEntity {
     @ManyToOne()
     @JoinColumn(name = "assignee", referencedColumnName = "entity_id", nullable = false)
     private Person assignee;
+
+    @ManyToOne()
+    @JoinColumn(name = "machine", referencedColumnName = "entity_id")
+    private Machine machine;
 
     @Override
     public void init() {
@@ -136,5 +141,13 @@ public class Task implements ApplicationEntity {
 
     public void setAssignee(Person assignee) {
         this.assignee = assignee;
+    }
+
+    public Machine getMachine() {
+        return machine;
+    }
+
+    public void setMachine(Machine machine) {
+        this.machine = machine;
     }
 }
