@@ -19,6 +19,8 @@ import ppm.odataprovider.data.ApplicationEntity;
 import ppm.odataprovider.data.EntityDataHelper;
 import ppm.odataprovider.data.PpmODataGenericService;
 import ppm.odataprovider.service.metadata.EntityMetadataHelper;
+import ppm.odataprovider.service.metadata.EntityOperationMetadataModel;
+import ppm.odataprovider.service.metadata.OperationParameterModel;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -222,12 +224,63 @@ public class EntityServiceHandler {
             Optional<ApplicationEntity> result = service.getEntity(entityClazz, params);
             if (result.isPresent()) {
                 service.deleteEntity(result.get());
-            }else{
+            } else {
                 throw new ODataApplicationException(String.format("Entity with id(%s) not found", params.toString()), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
             }
         } catch (Exception ex) {
             throw new ODataApplicationException(ex.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
+    }
+
+    public Map<Class, List<ApplicationEntity>> executeEntityFunction(String functionName, List<UriParameter> params) throws ODataApplicationException {
+        List<ApplicationEntity> entityList = null;
+        Class entityClazz = null;
+        Optional<EntityOperationMetadataModel> functionMetadata = this.entityMetadata.getFunction(functionName);
+        if (functionMetadata.isPresent()) {
+            try {
+                Method entityMethod = EntityDataHelper.getStaticMethod(functionMetadata.get().getEntityClass(), functionMetadata.get().getMethod());
+                List<Object> methodArgs = this.getMethodParameters(functionMetadata.get().getParams(), params);
+                Object functionReturnResult = entityMethod.invoke(null, methodArgs.toArray(new Object[methodArgs.size()]));
+                if (EntityDataHelper.isCollectionType(entityMethod.getReturnType())) {
+                    entityList = (List<ApplicationEntity>) functionReturnResult;
+                    String typeName = EntityDataHelper.getParameterizedType(entityMethod.getGenericReturnType()).getTypeName();
+                    entityClazz = EntityDataHelper.loadClass(typeName);
+                } else {
+                    ApplicationEntity entity = (ApplicationEntity) functionReturnResult;
+                    entityList = new ArrayList<>();
+                    entityList.add(entity);
+                    entityClazz = EntityDataHelper.loadClass(entityMethod.getGenericReturnType().getTypeName());
+                }
+
+                Map<Class, List<ApplicationEntity>> returnMap = new HashMap<>();
+                returnMap.put(entityClazz, entityList);
+                return returnMap;
+
+            } catch (Exception e) {
+                throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+            }
+        }else{
+            throw new ODataApplicationException("Function not found!",  HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
+        }
+    }
+
+    private List<Object> getMethodParameters(Map<String, OperationParameterModel> paramMetadata, List<UriParameter> uriParameters) {
+        List<Object> argList = new ArrayList<>();
+        if (paramMetadata != null) {
+            for (Map.Entry<String, OperationParameterModel> param : paramMetadata.entrySet()) {
+                OperationParameterModel meta = param.getValue();
+                Optional<UriParameter> uriParameter = uriParameters.stream().filter((p) -> p.getName().equals(meta.getName())).findFirst();
+                if (uriParameter.isPresent()) {
+                    if (meta.getType().equals("Integer") || meta.getType().equals("int")) {
+                        argList.add(Integer.parseInt(uriParameter.get().getText()));
+                    } else if (meta.getType().equals("String")) {
+                        String value = uriParameter.get().getText().substring(1, uriParameter.get().getText().length() - 1);
+                        argList.add(value);
+                    }
+                }
+            }
+        }
+        return argList;
     }
 
     private Object getNavEntity(String navProperty, Class<?> entityClazz, ApplicationEntity resultObject) throws NoSuchFieldException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {

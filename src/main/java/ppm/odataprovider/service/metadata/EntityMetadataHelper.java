@@ -53,20 +53,6 @@ public class EntityMetadataHelper {
         });
     }
 
-    public static boolean isCollectionType(Class type) {
-        return type.equals(List.class) || type.equals(Map.class);
-    }
-
-    public static Type getParameterizedType(Field field) {
-        Type parameterizedType = null;
-        Type type = field.getGenericType();
-        if (type instanceof ParameterizedType) {
-            ParameterizedType pt = (ParameterizedType) type;
-            parameterizedType = pt.getActualTypeArguments()[0];
-        }
-        return parameterizedType;
-    }
-
     public Map<String, String> getEntitySets() {
         return this.edm.getEntityset();
     }
@@ -118,7 +104,6 @@ public class EntityMetadataHelper {
         return edmPrimitiveTypeKind.getFullQualifiedName();
     }
 
-
     public boolean isPrimitiveType(Class type) {
         boolean isPrimitive = false;
         if (type.equals(Integer.TYPE) || type.equals(Long.TYPE) || type.equals(Double.TYPE) || type.equals(Date.class)
@@ -128,20 +113,27 @@ public class EntityMetadataHelper {
         return isPrimitive;
     }
 
-    public Optional<String> getEntitySetForEntityClass(String className) {
+    public Optional<String> getEntityForEntityClass(String className){
         String entityTypeName = null;
         for (Map.Entry<String, EntityTypeMetadata> edmEntry : this.edm.getEntities().entrySet()) {
-
             EntityTypeMetadata metadata = edmEntry.getValue();
             if (metadata.getEntityClass().equals(className)) {
                 entityTypeName = edmEntry.getKey();
                 break;
             }
         }
+        if(entityTypeName != null){
+            return Optional.of(entityTypeName);
+        }else {
+            return Optional.empty();
+        }
+    }
 
-        if (entityTypeName != null) {
+    public Optional<String> getEntitySetForEntityClass(String className) {
+        Optional<String> entityTypeName = this.getEntityForEntityClass(className);
+        if (entityTypeName.isPresent()) {
             for (Map.Entry<String, String> esEntry : this.edm.getEntityset().entrySet()) {
-                if (esEntry.getValue().equals(entityTypeName)) {
+                if (esEntry.getValue().equals(entityTypeName.get())) {
                     return Optional.of(esEntry.getKey());
                 }
             }
@@ -170,4 +162,24 @@ public class EntityMetadataHelper {
         }
         return service;
     }
+
+    public List<EntityOperationMetadataModel> getFunctionList() {
+        return new ArrayList(this.edm.getFunctions().values());
+    }
+
+    public Optional<EntityOperationMetadataModel> getFunction(String functionName){
+        return this.edm.getFunctions().containsKey(functionName) ? Optional.of(this.edm.getFunctions().get(functionName)) : Optional.empty();
+    }
+
+    public List<EntityOperationMetadataModel> getActionList(){
+        if(this.edm.getActions() == null){
+            return null;
+        }
+        return new ArrayList(this.edm.getActions().values());
+    }
+
+    public Optional<EntityOperationMetadataModel> getAction(String actionName){
+        return this.edm.getActions() != null && this.edm.getActions().containsKey(actionName) ? Optional.of(this.edm.getActions().get(actionName)) : Optional.empty();
+    }
 }
+
