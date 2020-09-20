@@ -3,11 +3,13 @@ package ppm.odataprovider.service;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.olingo.commons.api.edm.provider.*;
 import org.apache.olingo.commons.api.ex.ODataException;
+import ppm.odataprovider.data.EntityDataHelper;
 import ppm.odataprovider.service.metadata.EntityMetadataHelper;
+import ppm.odataprovider.service.metadata.EntityOperationMetadataModel;
 import ppm.odataprovider.service.metadata.EntityTypeMetadata;
+import ppm.odataprovider.service.metadata.OperationParameterModel;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.*;
 
 public class PpmEdmProvider extends CsdlAbstractEdmProvider {
@@ -16,7 +18,7 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
     private static final String NAMESPACE = "OData.Ppm";
 
     // EDM Container
-    private static final String CONTAINER_NAME = "Project   Container";
+    private static final String CONTAINER_NAME = "Project Container";
     private static final FullQualifiedName CONTAINER = new FullQualifiedName(NAMESPACE, CONTAINER_NAME);
 
     private EntityMetadataHelper entityMetadata;
@@ -36,6 +38,7 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
             List<CsdlProperty> properties = new ArrayList<>();
             List<CsdlPropertyRef> keyref = new ArrayList<>();
             List<CsdlNavigationProperty> navPropList = new ArrayList<>();
+//            for (EntityTypeMetadata model : this.entityMetadata.getEntityMetadata()) {
             Optional<EntityTypeMetadata> entityTypeMetadataOptional = this.entityMetadata.getEntity(entityTypeName.getName());
             if (entityTypeMetadataOptional.isPresent()) {
                 EntityTypeMetadata model = entityTypeMetadataOptional.get();
@@ -43,18 +46,15 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                 Field[] classFields = entityClass.getDeclaredFields();
                 for (Field field : classFields) {
                     if (this.entityMetadata.isPrimitiveType(field.getType())) {
-
                         properties.add(new CsdlProperty()
                                 .setName(field.getName())
                                 .setType(this.entityMetadata.getODataPrimitiveDataType(field.getType().getName())));
-
                         keyref.add(new CsdlPropertyRef().setName("entityId"));
-
                     } else if (EntityMetadataHelper.isNavigationProperty(field)) {
-                        boolean isCollection = EntityMetadataHelper.isCollectionType(field.getType());
+                        boolean isCollection = EntityDataHelper.isCollectionType(field.getType());
 
                         Optional<String> navEntitySetOptional = isCollection ?
-                                this.entityMetadata.getEntitySetForEntityClass(EntityMetadataHelper.getParameterizedType(field).getTypeName())
+                                this.entityMetadata.getEntitySetForEntityClass(EntityDataHelper.getParameterizedType(field.getGenericType()).getTypeName())
                                 : this.entityMetadata.getEntitySetForEntityClass(field.getType().getName());
 
                         if (navEntitySetOptional.isPresent()) {
@@ -64,7 +64,6 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                                     .setType(new FullQualifiedName(PpmEdmProvider.NAMESPACE, navEntityTypeName))
                                     .setCollection(isCollection)
                                     .setNullable(false);
-//                                        .setPartner(model.getEntitySetName());
                             navPropList.add(navProp);
 
                         }
@@ -75,6 +74,7 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                 entityType.setKey(keyref);
                 entityType.setNavigationProperties(navPropList);
             }
+//            }
             return entityType;
         } catch (Exception e) {
             throw new ODataException(e.getMessage());
@@ -130,12 +130,32 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
         schema.setEntityTypes(entityTypes);
         schema.setEntityContainer(getEntityContainer());
         List<CsdlSchema> schemaList = new ArrayList<>();
+
+        // adding functions
+        if (this.entityMetadata.getActionList() != null) {
+            List<CsdlFunction> functions = new ArrayList<>();
+            for (EntityOperationMetadataModel funcModel : this.entityMetadata.getFunctionList()) {
+                functions.addAll(this.getFunctions(new FullQualifiedName(NAMESPACE, funcModel.getName())));
+            }
+            schema.setFunctions(functions);
+        }
+
+        // adding actions
+        if(this.entityMetadata.getActionList() != null){
+            List<CsdlAction> actions = new ArrayList<>();
+            for (EntityOperationMetadataModel action: this.entityMetadata.getActionList()) {
+                actions.addAll(this.getActions(new FullQualifiedName(NAMESPACE, action.getName())));
+            }
+            schema.setActions(actions);
+        }
+
         schemaList.add(schema);
         return schemaList;
     }
 
     @Override
     public CsdlEntityContainer getEntityContainer() throws ODataException {
+        // adding entity sets
         List<CsdlEntitySet> entitySets = new ArrayList<>();
         for (String entityset : this.entityMetadata.getEntitySets().keySet()) {
             entitySets.add(this.getEntitySet(CONTAINER, entityset));
@@ -143,6 +163,155 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
         CsdlEntityContainer entityContainer = new CsdlEntityContainer();
         entityContainer.setName(CONTAINER_NAME);
         entityContainer.setEntitySets(entitySets);
+
+        // adding functions
+        List<CsdlFunctionImport> functionImports = new ArrayList<>();
+        for (EntityOperationMetadataModel funcModel : this.entityMetadata.getFunctionList()) {
+            functionImports.add(getFunctionImport(new FullQualifiedName(NAMESPACE, CONTAINER_NAME), funcModel.getName()));
+        }
+        entityContainer.setFunctionImports(functionImports);
+
+        // adding actions
+        if (this.entityMetadata.getActionList() != null) {
+            List<CsdlActionImport> actionImports = new ArrayList<>();
+            for (EntityOperationMetadataModel actionModel : this.entityMetadata.getActionList()) {
+                actionImports.add(getActionImport(new FullQualifiedName(NAMESPACE, CONTAINER_NAME), actionModel.getName()));
+            }
+            entityContainer.setActionImports(actionImports);
+        }
+
         return entityContainer;
+    }
+
+    @Override
+    public List<CsdlFunction> getFunctions(FullQualifiedName fqnFunctionName) throws ODataException {
+        List<CsdlFunction> functionList = new ArrayList<>();
+        String functionName = fqnFunctionName.getName();
+        Optional<EntityOperationMetadataModel> operationMaybe = this.entityMetadata.getFunction(functionName);
+
+        if (operationMaybe.isPresent()) {
+            EntityOperationMetadataModel functionMetadata = operationMaybe.get();
+            try {
+                Method method = EntityDataHelper.getStaticMethod(functionMetadata.getEntityClass(), functionMetadata.getMethod());
+                boolean isCollection = EntityDataHelper.isCollectionType(method.getReturnType());
+                String returnTypeName = getMethodReturnEntityType(functionName, method);
+
+                CsdlReturnType returnType = new CsdlReturnType();
+                returnType.setCollection(isCollection);
+                returnType.setType(new FullQualifiedName(NAMESPACE, returnTypeName));
+
+                CsdlFunction csdlFunction = new CsdlFunction();
+                csdlFunction.setName(functionName);
+
+                if (functionMetadata.getParams() != null) {
+                    List<CsdlParameter> csdlParameters = getCsdlParameters(functionMetadata.getParams());
+                    csdlFunction.setParameters(csdlParameters);
+                }
+                csdlFunction.setReturnType(returnType);
+
+                functionList.add(csdlFunction);
+            } catch (ClassNotFoundException e) {
+                throw new ODataException(e.getMessage());
+            }
+        }
+        return functionList;
+    }
+
+    private String getMethodReturnEntityType(String name, Method method) throws ODataException {
+        Type methodReturnType;
+        String returnTypeName;
+
+        if(method.getReturnType().getName().equals("void")){
+            return null;
+        }
+
+        if (EntityDataHelper.isCollectionType(method.getReturnType())) {
+            methodReturnType = EntityDataHelper.getParameterizedType(method.getGenericReturnType());
+
+        } else {
+            methodReturnType = method.getReturnType();
+        }
+
+        Optional<String> returnEntityName = this.entityMetadata.getEntityForEntityClass(methodReturnType.getTypeName());
+        if (returnEntityName.isEmpty()) {
+            throw new ODataException("Invalid return type for function" + name);
+        }
+        returnTypeName = returnEntityName.get();
+        return returnTypeName;
+    }
+
+    @Override
+    public List<CsdlAction> getActions(FullQualifiedName actionName) throws ODataException {
+        String name = actionName.getName();
+        List<CsdlAction> actionList = new ArrayList<>();
+        Optional<EntityOperationMetadataModel> actionMaybe = this.entityMetadata.getAction(name);
+
+        if (actionMaybe.isPresent()) {
+            EntityOperationMetadataModel actionMetadata = actionMaybe.get();
+            try {
+                Method actionMethod = EntityDataHelper.getStaticMethod(actionMetadata.getEntityClass(), actionMetadata.getMethod());
+                boolean isCollection = EntityDataHelper.isCollectionType(actionMethod.getReturnType());
+                String returnTypeName = getMethodReturnEntityType(name, actionMethod);
+
+                CsdlAction csdlAction = new CsdlAction();
+                csdlAction.setName(name);
+
+                if(returnTypeName != null) {
+                    CsdlReturnType returnType = new CsdlReturnType();
+                    returnType.setCollection(isCollection);
+                    returnType.setType(new FullQualifiedName(NAMESPACE, returnTypeName));
+                    csdlAction.setReturnType(returnType);
+                }
+
+                if (actionMetadata.getParams() != null) {
+                    List<CsdlParameter> csdlParameters = getCsdlParameters(actionMetadata.getParams());
+                    csdlAction.setParameters(csdlParameters);
+                }
+
+                actionList.add(csdlAction);
+            } catch (ClassNotFoundException e) {
+                throw new ODataException(e.getMessage());
+            }
+        }
+        return actionList;
+    }
+
+    private List<CsdlParameter> getCsdlParameters(Map<String, OperationParameterModel> params) {
+        List<CsdlParameter> csdlParameters = new ArrayList<>();
+        for (Map.Entry<String, OperationParameterModel> param : params.entrySet()) {
+
+            CsdlParameter csdlParameter = new CsdlParameter();
+            csdlParameter.setName(param.getKey());
+            csdlParameter.setNullable(false);
+            csdlParameter.setType(this.entityMetadata.getODataPrimitiveDataType(param.getValue().getType()));
+            csdlParameters.add(csdlParameter);
+        }
+        return csdlParameters;
+    }
+
+    @Override
+    public CsdlFunctionImport getFunctionImport(FullQualifiedName entityContainer, String functionImportName) throws ODataException {
+        Optional<EntityOperationMetadataModel> function = this.entityMetadata.getFunction(functionImportName);
+        if (function.isPresent()) {
+            EntityOperationMetadataModel model = function.get();
+            return new CsdlFunctionImport().setName(model.getName())
+                    .setFunction(new FullQualifiedName(NAMESPACE, model.getName()))
+                    .setEntitySet("Persons")
+                    .setIncludeInServiceDocument(true);
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public CsdlActionImport getActionImport(FullQualifiedName entityContainer, String actionImportName) throws ODataException {
+        Optional<EntityOperationMetadataModel> action = this.entityMetadata.getAction(actionImportName);
+        if (action.isPresent()) {
+            EntityOperationMetadataModel model = action.get();
+            return new CsdlActionImport().setName(model.getName())
+                    .setAction(new FullQualifiedName(NAMESPACE, model.getName()));
+        } else {
+            return null;
+        }
     }
 }

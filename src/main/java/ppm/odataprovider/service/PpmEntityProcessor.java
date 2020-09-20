@@ -4,6 +4,7 @@ import org.apache.olingo.commons.api.data.ContextURL;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
+import org.apache.olingo.commons.api.edm.EdmFunction;
 import org.apache.olingo.commons.api.edm.EdmNavigationProperty;
 import org.apache.olingo.commons.api.format.ContentType;
 import org.apache.olingo.commons.api.http.HttpHeader;
@@ -18,12 +19,14 @@ import org.apache.olingo.server.api.serializer.ODataSerializer;
 import org.apache.olingo.server.api.serializer.SerializerResult;
 import org.apache.olingo.server.api.uri.*;
 import org.apache.olingo.server.api.uri.queryoption.ExpandOption;
+import ppm.odataprovider.data.ApplicationEntity;
 import ppm.odataprovider.data.EntityDataHelper;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class PpmEntityProcessor implements EntityProcessor {
 
@@ -32,7 +35,19 @@ public class PpmEntityProcessor implements EntityProcessor {
 
     @Override
     public void readEntity(ODataRequest request, ODataResponse response, UriInfo uriInfo, ContentType responseFormat) throws ODataApplicationException, ODataLibraryException {
+        List<UriResource> uriResources = uriInfo.getUriResourceParts();
+        UriResource firstSegment = uriResources.get(0);
+        if(firstSegment instanceof UriResourceEntitySet){
+            this.readEntityInternal(response, uriInfo, responseFormat);
+        }else if( firstSegment instanceof UriResourceFunction){
+            this.readFunctionImportInternal( (UriResourceFunction) firstSegment, response,  responseFormat);
+        }else {
+            throw new ODataApplicationException("Only EntitySet is supported",
+                    HttpStatusCode.NOT_IMPLEMENTED.getStatusCode(), Locale.ENGLISH);
+        }
+    }
 
+    private void readEntityInternal(ODataResponse response, UriInfo uriInfo, ContentType responseFormat) throws ODataApplicationException, ODataLibraryException {
         EdmEntitySet responseEntitySet = null;
         Entity responseEntity = null;
         EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
@@ -88,6 +103,29 @@ public class PpmEntityProcessor implements EntityProcessor {
 
         // Configure the response object
         response.setContent(entityStream);
+        response.setStatusCode(HttpStatusCode.OK.getStatusCode());
+        response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
+    }
+
+    private void readFunctionImportInternal(UriResourceFunction uriResourceFunction, ODataResponse response, ContentType responseFormat) throws ODataApplicationException, ODataLibraryException {
+
+        final EdmFunction edmFunction = uriResourceFunction.getFunction();
+        final EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
+        final List<UriParameter> uriParameters = uriResourceFunction.getParameters();
+
+        EntityOperationResult functionResult = entityServiceHandler.executeEntityOperation(EntityOperationType.Function, edmFunction.getName(), uriParameters);
+        Class entityClass = functionResult.getEntityClazz().get();
+        final Entity entity = EntityDataHelper.toEntity(entityClass, functionResult.getData().get(), null, null);
+
+        // 2nd step: Serialize the response entity
+        final EdmEntityType edmEntityType = (EdmEntityType) uriResourceFunction.getFunction().getReturnType().getType();
+        final ContextURL contextURL = ContextURL.with().type(edmEntityType).build();
+        final EntitySerializerOptions opts = EntitySerializerOptions.with().contextURL(contextURL).build();
+        final ODataSerializer serializer = odata.createSerializer(responseFormat);
+        final SerializerResult serializerResult = serializer.entity(serviceMetadata, edmEntityType, entity, opts);
+
+        // 3rd configure the response object
+        response.setContent(serializerResult.getContent());
         response.setStatusCode(HttpStatusCode.OK.getStatusCode());
         response.setHeader(HttpHeader.CONTENT_TYPE, responseFormat.toContentTypeString());
     }

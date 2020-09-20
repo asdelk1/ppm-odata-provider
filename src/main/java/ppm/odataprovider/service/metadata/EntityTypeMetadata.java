@@ -1,5 +1,7 @@
 package ppm.odataprovider.service.metadata;
 
+import ppm.odataprovider.data.EntityDataHelper;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -43,8 +45,8 @@ public class EntityTypeMetadata {
             Class entityClass = Thread.currentThread().getContextClassLoader().loadClass(this.getEntityClass());
             for (Field field : entityClass.getDeclaredFields()) {
                 if (EntityMetadataHelper.isNavigationProperty(field)) {
-                    if (EntityMetadataHelper.isCollectionType(field.getType())) {
-                        navFields.put(field.getName(), EntityMetadataHelper.getParameterizedType(field));
+                    if (EntityDataHelper.isCollectionType(field.getType())) {
+                        navFields.put(field.getName(), EntityDataHelper.getParameterizedType(field.getGenericType()));
                     } else {
                         navFields.put(field.getName(), field.getType());
                     }

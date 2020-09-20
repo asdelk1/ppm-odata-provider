@@ -6,6 +6,7 @@ import org.apache.olingo.commons.api.data.*;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
 import org.apache.olingo.commons.api.edm.EdmNavigationProperty;
+import org.apache.olingo.commons.api.ex.ODataException;
 import org.apache.olingo.commons.api.ex.ODataRuntimeException;
 import org.apache.olingo.commons.api.http.HttpStatusCode;
 import org.apache.olingo.server.api.ODataApplicationException;
@@ -17,15 +18,10 @@ import ppm.odataprovider.service.metadata.EntityMetadataHelper;
 
 import javax.persistence.Id;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.lang.reflect.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class EntityDataHelper {
 
@@ -65,12 +61,12 @@ public class EntityDataHelper {
                         link.setRel(Constants.NS_ASSOCIATION_LINK_REL + navPropName);
                         Object value = invokeGetter(dataClass, object, field);
                         if (navProperty.isCollection()) {
-                           List<ApplicationEntity> list = (List<ApplicationEntity>) value;
+                            List<ApplicationEntity> list = (List<ApplicationEntity>) value;
                             EntityCollection expandEntityCollection = new EntityCollection();
                             addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs, expandOption);
                             link.setInlineEntitySet(expandEntityCollection);
                             link.setHref(expandEntityCollection.getId().toASCIIString());
-                        }else {
+                        } else {
                             // handle single entity
                             Entity expandedEntity = toEntity(field.getType(), value, targetEs, null);
                             link.setInlineEntity(expandedEntity);
@@ -80,15 +76,13 @@ public class EntityDataHelper {
                         entity.getNavigationLinks().add(link);
                     }
                 } else {
-
                     Annotation keyAnnotation = field.getAnnotation(Id.class);
                     Object value = invokeGetter(dataClass, object, field);
                     Property property = new Property(null, field.getName(), ValueType.PRIMITIVE, value);
                     entity.addProperty(property);
                     if (keyAnnotation != null) {
-                        id = createId(entitySet.getName(), value);
+                        id = new URI(String.valueOf(value));
                     }
-
                 }
             }
         } catch (NoSuchMethodException e) {
@@ -97,6 +91,8 @@ public class EntityDataHelper {
             e.printStackTrace();
         } catch (InvocationTargetException e) {
             e.printStackTrace();
+        } catch (URISyntaxException e) {
+            throw new ODataRuntimeException("Unable to create id for entity: " + e);
         }
         entity.setId(id);
 
@@ -112,7 +108,7 @@ public class EntityDataHelper {
 
             if (EntityMetadataHelper.isNavigationProperty(field)) {
                 Link navigationLink = entity.getNavigationLink(field.getName());
-                if (!EntityMetadataHelper.isCollectionType(field.getType()) && navigationLink != null) {
+                if (!EntityDataHelper.isCollectionType(field.getType()) && navigationLink != null) {
                     invokeSetter(entityClass, obj, field, fromEntity(field.getType(), navigationLink.getInlineEntity()));
                 }
             } else {
@@ -181,11 +177,33 @@ public class EntityDataHelper {
         return params;
     }
 
-    private static URI createId(String entitySetName, Object id) {
-        try {
-            return new URI(entitySetName + "(" + String.valueOf(id) + ")");
-        } catch (URISyntaxException e) {
-            throw new ODataRuntimeException("Unable to create id for entity: " + entitySetName, e);
+    public static Method getStaticMethod(String clazzName, String methodName) throws ClassNotFoundException, ODataException {
+        Class clazz = Thread.currentThread().getContextClassLoader().loadClass(clazzName);
+        Method[] clazzMethods = clazz.getMethods();
+        Optional<Method> clazzMethod = Arrays.stream(clazzMethods).filter(m -> m.getName().equals(methodName)).findFirst();
+        if (clazzMethod.isPresent() && Modifier.isStatic(clazzMethod.get().getModifiers())) {
+            return clazzMethod.get();
+
+        } else {
+            throw new ODataException("No static method: " + methodName + " is found in class: " + clazzName);
         }
     }
+
+    public static boolean isCollectionType(Class type) {
+        return type.equals(List.class) || type.equals(Map.class);
+    }
+
+    public static Type getParameterizedType(Type type) {
+        Type parameterizedType = null;
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) type;
+            parameterizedType = pt.getActualTypeArguments()[0];
+        }
+        return parameterizedType;
+    }
+
+    public static Class loadClass(String clazzName) throws ClassNotFoundException {
+        return Thread.currentThread().getContextClassLoader().loadClass(clazzName);
+    }
+
 }
