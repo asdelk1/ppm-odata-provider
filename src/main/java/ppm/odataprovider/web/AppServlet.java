@@ -25,8 +25,6 @@ public class AppServlet extends HttpServlet {
     protected void service(final HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
         try {
             // create odata handler and configure it with CsdlEdmProvider and Processor
-
-
             OData odata = OData.newInstance();
             ServiceMetadata edm = odata.createServiceMetadata(new PpmEdmProvider(), new ArrayList<EdmxReference>());
             ODataHttpHandler handler = odata.createHandler(edm);

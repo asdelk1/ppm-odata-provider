@@ -18,7 +18,7 @@ public class Person implements ApplicationEntity {
     private String entityId;
 
     @Column(name = "person_id", nullable = false, updatable = false)
-    private long personId;
+    private String personId;
     @Column(name = "first_name", nullable = false)
     private String firstName;
     @Column(name = "last_name", nullable = false)
@@ -45,11 +45,11 @@ public class Person implements ApplicationEntity {
         this.entityId = entityId;
     }
 
-    public long getPersonId() {
+    public String getPersonId() {
         return this. personId;
     }
 
-    public void setUserId(long personId) {
+    public void setUserId(String personId) {
         this.personId = personId;
     }
 
@@ -77,7 +77,7 @@ public class Person implements ApplicationEntity {
         this.department = department;
     }
 
-    public void setPersonId(long personId) {
+    public void setPersonId(String personId) {
         this.personId = personId;
     }
 
