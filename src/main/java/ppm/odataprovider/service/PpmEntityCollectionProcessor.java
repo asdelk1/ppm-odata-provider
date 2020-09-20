@@ -118,9 +118,9 @@ public class PpmEntityCollectionProcessor implements EntityCollectionProcessor {
         final EntityCollection entityCollection = new EntityCollection();
         final EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
 
-        Map<Class, List<ApplicationEntity>> functionResult = entityServiceHandler.executeEntityFunction(edmFunction.getName(), uriParameters);
-        Class entityClass = (Class) functionResult.keySet().toArray()[0];
-        EntityDataHelper.addEntitiesToCollection(entityCollection, functionResult.get(entityClass),entityClass  ,null, null);
+        EntityOperationResult functionResult = entityServiceHandler.executeEntityOperation(EntityOperationType.Function, edmFunction.getName(), uriParameters);
+        Class entityClass = functionResult.getEntityClazz().get();
+        EntityDataHelper.addEntitiesToCollection(entityCollection, functionResult.getData().get(), entityClass,null, null);
 
         final EdmEntityType edmEntityType = (EdmEntityType) uriResourceFunction.getFunction().getReturnType().getType();
         final ContextURL contextURL = ContextURL.with().asCollection().type(edmEntityType).build();

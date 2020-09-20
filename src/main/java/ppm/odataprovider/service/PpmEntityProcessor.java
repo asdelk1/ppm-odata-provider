@@ -2,7 +2,6 @@ package ppm.odataprovider.service;
 
 import org.apache.olingo.commons.api.data.ContextURL;
 import org.apache.olingo.commons.api.data.Entity;
-import org.apache.olingo.commons.api.data.EntityCollection;
 import org.apache.olingo.commons.api.edm.EdmEntitySet;
 import org.apache.olingo.commons.api.edm.EdmEntityType;
 import org.apache.olingo.commons.api.edm.EdmFunction;
@@ -114,9 +113,9 @@ public class PpmEntityProcessor implements EntityProcessor {
         final EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
         final List<UriParameter> uriParameters = uriResourceFunction.getParameters();
 
-        Map<Class, List<ApplicationEntity>> functionResult = entityServiceHandler.executeEntityFunction(edmFunction.getName(), uriParameters);
-        Class entityClass = (Class) functionResult.keySet().toArray()[0];
-        final Entity entity = EntityDataHelper.toEntity(entityClass, functionResult.get(entityClass), null, null);
+        EntityOperationResult functionResult = entityServiceHandler.executeEntityOperation(EntityOperationType.Function, edmFunction.getName(), uriParameters);
+        Class entityClass = functionResult.getEntityClazz().get();
+        final Entity entity = EntityDataHelper.toEntity(entityClass, functionResult.getData().get(), null, null);
 
         // 2nd step: Serialize the response entity
         final EdmEntityType edmEntityType = (EdmEntityType) uriResourceFunction.getFunction().getReturnType().getType();

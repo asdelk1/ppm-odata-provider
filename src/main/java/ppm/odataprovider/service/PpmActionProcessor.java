@@ -33,5 +33,11 @@ public class PpmActionProcessor implements ActionVoidProcessor {
 
         final ODataDeserializer oDataDeserializer = this.oData.createDeserializer(contentType);
         final Map<String, Parameter> actionParameters = oDataDeserializer.actionParameters(oDataRequest.getBody(), edmAction).getActionParameters();
+        final EntityServiceHandler entityServiceHandler = new EntityServiceHandler();
+
+        final EntityOperationResult result = entityServiceHandler.executeEntityOperation(EntityOperationType.Action, edmAction.getName(), actionParameters);
+
+        oDataResponse.setStatusCode(HttpStatusCode.NO_CONTENT.getStatusCode());
+
     }
 }

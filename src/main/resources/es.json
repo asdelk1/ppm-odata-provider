@@ -1,23 +1,49 @@
 {
-	"entityset": {
-		"Tasks": "Task",
-		"Persons": "Person"
-	},
-	"entities": {
-		"Task": {
-			"entityClass": "ppm.odataprovider.app.task.Task",
-			"serviceClass": "ppm.odataprovider.app.task.TaskService",
-			"keys": [
-				"taskId"
-			]
-		},
-		"Person": {			
-			"entityClass": "ppm.odataprovider.app.person.Person",
-			"serviceClass": "ppm.odataprovider.app.person.PersonService",
-			"keys": [
-				"personId"
-			]
-		}
-	}
+  "entityset": {
+    "Tasks": "Task",
+    "Persons": "Person"
+  },
+  "entities": {
+    "Task": {
+      "entityClass": "ppm.odataprovider.app.task.Task",
+      "serviceClass": "ppm.odataprovider.app.task.TaskService",
+      "keys": [
+        "taskId"
+      ]
+    },
+    "Person": {
+      "entityClass": "ppm.odataprovider.app.person.Person",
+      "serviceClass": "ppm.odataprovider.app.person.PersonService",
+      "keys": [
+        "personId"
+      ]
+    }
+  },
+  "functions": {
+    "GetFreePersons": {
+      "name": "GetFreePersons",
+      "entityClass": "ppm.odataprovider.app.person.PersonService",
+      "method": "getFreePersons",
+      "params": {
+        "Name": {
+          "name": "Name",
+          "type": "String"
+        }
+      }
+    }
+  },
+  "actions": {
+    "ChangeDepartment": {
+      "name": "ChangeDepartment",
+      "entityClass": "ppm.odataprovider.app.person.PersonService",
+      "method": "changeDepartment",
+      "params": {
+        "department": {
+          "name": "department",
+          "type": "String"
+        }
+      }
+    }
+  }
 }
 

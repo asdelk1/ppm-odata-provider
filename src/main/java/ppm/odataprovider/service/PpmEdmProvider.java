@@ -217,19 +217,24 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
         return functionList;
     }
 
-    private String getMethodReturnEntityType(String functionName, Method method) throws ODataException {
+    private String getMethodReturnEntityType(String name, Method method) throws ODataException {
         Type methodReturnType;
         String returnTypeName;
+
+        if(method.getReturnType().getName().equals("void")){
+            return null;
+        }
+
         if (EntityDataHelper.isCollectionType(method.getReturnType())) {
             methodReturnType = EntityDataHelper.getParameterizedType(method.getGenericReturnType());
 
         } else {
-            methodReturnType = method.getGenericReturnType();
+            methodReturnType = method.getReturnType();
         }
 
         Optional<String> returnEntityName = this.entityMetadata.getEntityForEntityClass(methodReturnType.getTypeName());
         if (returnEntityName.isEmpty()) {
-            throw new ODataException("Invalid return type for function" + functionName);
+            throw new ODataException("Invalid return type for function" + name);
         }
         returnTypeName = returnEntityName.get();
         return returnTypeName;
@@ -248,18 +253,21 @@ public class PpmEdmProvider extends CsdlAbstractEdmProvider {
                 boolean isCollection = EntityDataHelper.isCollectionType(actionMethod.getReturnType());
                 String returnTypeName = getMethodReturnEntityType(name, actionMethod);
 
-                CsdlReturnType returnType = new CsdlReturnType();
-                returnType.setCollection(isCollection);
-                returnType.setType(new FullQualifiedName(NAMESPACE, returnTypeName));
-
                 CsdlAction csdlAction = new CsdlAction();
                 csdlAction.setName(name);
+
+                if(returnTypeName != null) {
+                    CsdlReturnType returnType = new CsdlReturnType();
+                    returnType.setCollection(isCollection);
+                    returnType.setType(new FullQualifiedName(NAMESPACE, returnTypeName));
+                    csdlAction.setReturnType(returnType);
+                }
 
                 if (actionMetadata.getParams() != null) {
                     List<CsdlParameter> csdlParameters = getCsdlParameters(actionMetadata.getParams());
                     csdlAction.setParameters(csdlParameters);
                 }
-                csdlAction.setReturnType(returnType);
+
                 actionList.add(csdlAction);
             } catch (ClassNotFoundException e) {
                 throw new ODataException(e.getMessage());

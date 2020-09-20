@@ -8,10 +8,7 @@ import org.apache.olingo.server.api.debug.DebugSupport;
 import org.apache.olingo.server.api.debug.DefaultDebugSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ppm.odataprovider.service.PpmEdmProvider;
-import ppm.odataprovider.service.PpmEntityCollectionProcessor;
-import ppm.odataprovider.service.PpmEntityProcessor;
-import ppm.odataprovider.service.PpmPrimitiveProcessor;
+import ppm.odataprovider.service.*;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -36,6 +33,7 @@ public class AppServlet extends HttpServlet {
             handler.register(new PpmEntityCollectionProcessor());
             handler.register(new PpmEntityProcessor());
             handler.register(new PpmPrimitiveProcessor());
+            handler.register(new PpmActionProcessor());
 
             //Add debug support
             DebugSupport ds = new DefaultDebugSupport();
