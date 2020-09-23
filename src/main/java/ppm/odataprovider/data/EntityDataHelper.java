@@ -29,52 +29,34 @@ public class EntityDataHelper {
         Entity entity = new Entity();
         URI id = null;
         try {
+            EdmEntityType entityType = entitySet.getEntityType();
             for (Field field : dataClass.getDeclaredFields()) {
-                if (EntityMetadataHelper.isNavigationProperty(field) && expandOption != null) {
-                    EdmEntityType entityType = entitySet.getEntityType();
-                    EdmNavigationProperty navProperty = entityType.getNavigationProperty(field.getName());
+                EdmNavigationProperty navProperty = entityType.getNavigationProperty(field.getName());
+                if (EntityMetadataHelper.isNavigationProperty(field) && expandOption != null &&
+                        (navProperty != null && isExpandField(expandOption.getExpandItems(), navProperty))) {
+
                     EdmEntitySet targetEs = EntityServiceUtil.getNavigationTargetEntitySet(entitySet, navProperty);
+                    String navPropName = navProperty.getName();
+                    Link link = new Link();
+                    link.setTitle(navPropName);
+                    link.setType(Constants.ENTITY_NAVIGATION_LINK_TYPE);
+                    link.setRel(Constants.NS_ASSOCIATION_LINK_REL + navPropName);
+                    Object value = invokeGetter(dataClass, object, field);
+                    if (navProperty.isCollection()) {
+                        List<ApplicationEntity> list = (List<ApplicationEntity>) value;
+                        EntityCollection expandEntityCollection = new EntityCollection();
+                        addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs, expandOption);
+                        link.setInlineEntitySet(expandEntityCollection);
+                        link.setHref(expandEntityCollection.getId().toASCIIString());
+                    } else {
+                        // handle single entity
+                        Entity expandedEntity = toEntity(field.getType(), value, targetEs, null);
+                        link.setInlineEntity(expandedEntity);
+                        link.setHref(expandedEntity.getId().toASCIIString());
 
-                    List<ExpandItem> expandItems = expandOption.getExpandItems();
-                    boolean isExpandItemFound = expandItems.stream().anyMatch(
-                            (expandItem -> {
-                                if (expandItem.isStar()) {
-                                    return true;
-                                } else {
-                                    // Not sure about this, but for the moment leave it like this.
-                                    UriResource uriResource = expandItem.getResourcePath().getUriResourceParts().get(0);
-                                    if (uriResource instanceof UriResourceNavigation) {
-                                        EdmNavigationProperty expandNavProperty = ((UriResourceNavigation) uriResource).getProperty();
-                                        return expandNavProperty.equals(navProperty);
-                                    } else {
-                                        return false;
-                                    }
-                                }
-                            })
-                    );
-
-                    if (isExpandItemFound) {
-                        String navPropName = navProperty.getName();
-                        Link link = new Link();
-                        link.setTitle(navPropName);
-                        link.setType(Constants.ENTITY_NAVIGATION_LINK_TYPE);
-                        link.setRel(Constants.NS_ASSOCIATION_LINK_REL + navPropName);
-                        Object value = invokeGetter(dataClass, object, field);
-                        if (navProperty.isCollection()) {
-                            List<ApplicationEntity> list = (List<ApplicationEntity>) value;
-                            EntityCollection expandEntityCollection = new EntityCollection();
-                            addEntitiesToCollection(expandEntityCollection, list, field.getType(), targetEs, expandOption);
-                            link.setInlineEntitySet(expandEntityCollection);
-                            link.setHref(expandEntityCollection.getId().toASCIIString());
-                        } else {
-                            // handle single entity
-                            Entity expandedEntity = toEntity(field.getType(), value, targetEs, null);
-                            link.setInlineEntity(expandedEntity);
-                            link.setHref(expandedEntity.getId().toASCIIString());
-
-                        }
-                        entity.getNavigationLinks().add(link);
                     }
+                    entity.getNavigationLinks().add(link);
+
                 } else {
                     Annotation keyAnnotation = field.getAnnotation(Id.class);
                     Object value = invokeGetter(dataClass, object, field);
@@ -97,6 +79,30 @@ public class EntityDataHelper {
         entity.setId(id);
 
         return entity;
+    }
+
+    private static boolean isExpandField(List<ExpandItem> expandItems, EdmNavigationProperty navProperty) {
+        if (navProperty == null) {
+            return false;
+        }
+
+        boolean isExpandItemFound = expandItems.stream().anyMatch(
+                (expandItem -> {
+                    if (expandItem.isStar()) {
+                        return true;
+                    } else {
+                        // Not sure about this, but for the moment leave it like this.
+                        UriResource uriResource = expandItem.getResourcePath().getUriResourceParts().get(0);
+                        if (uriResource instanceof UriResourceNavigation) {
+                            EdmNavigationProperty expandNavProperty = ((UriResourceNavigation) uriResource).getProperty();
+                            return expandNavProperty.equals(navProperty);
+                        } else {
+                            return false;
+                        }
+                    }
+                })
+        );
+        return isExpandItemFound;
     }
 
     public static <T> T fromEntity(Class entityClass, Entity entity) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException, NoSuchFieldException {

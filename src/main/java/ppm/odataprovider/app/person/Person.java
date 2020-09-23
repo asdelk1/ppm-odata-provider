@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity()
-@Table(name = "persons")
+@Table(name = "person")
 public class Person implements ApplicationEntity {
 
     @Id

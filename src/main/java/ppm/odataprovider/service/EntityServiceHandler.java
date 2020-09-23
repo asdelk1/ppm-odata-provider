@@ -52,11 +52,6 @@ public class EntityServiceHandler {
                 resultSet = service.getAll(entityClazz);
             }
             EntityDataHelper.addEntitiesToCollection(entityCollection, resultSet, entityClazz, edmEntitySet, expandOption);
-
-// if there is no data need to raise an error, not sure this is the correct way might need to change it later.
-//            if (entityCollection.getEntities().isEmpty()) {
-//                throw new ODataApplicationException("", HttpStatusCode.NOT_FOUND.getStatusCode(), Locale.ENGLISH);
-//            }
         } catch (Exception e) {
             throw new ODataApplicationException(e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR.getStatusCode(), Locale.ENGLISH);
         }
